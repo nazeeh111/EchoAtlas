@@ -5,6 +5,7 @@ SONAR_STAGE=$(mktemp -d /private/tmp/sonar-build.XXXXXX)
 trap 'rm -rf "$SONAR_STAGE"' EXIT
 SONAR_APP="$SONAR_STAGE/EchoAtlas.app"
 mkdir -p "$SONAR_APP/Contents/MacOS" "$SONAR_APP/Contents/Resources"
+cp LICENSE THIRD_PARTY_NOTICES.md "$SONAR_APP/Contents/Resources/"
 ditto assets/zoom "$SONAR_APP/Contents/Resources/Zoom"
 ditto assets/gallery "$SONAR_APP/Contents/Resources/Gallery"
 cp assets/sonar.png "$SONAR_APP/Contents/Resources/SonarMark.png"
