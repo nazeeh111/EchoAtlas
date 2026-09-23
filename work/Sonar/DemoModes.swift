@@ -65,10 +65,11 @@ final class DemoSession: ObservableObject {
     @Published var inputFeedback = "Waiting for audio"
     @Published var galleryIndex = 0
     @Published var photos: [NSImage] = []
+    static let sampleNames = ["material-metal", "material-fold", "material-light"]
     init() { loadSamplePhotos() }
     func loadSamplePhotos() {
-        photos = (1...5).compactMap { index in
-            guard let url = Bundle.main.url(forResource:String(format:"%02d",index),withExtension:"jpg",subdirectory:"Gallery") else { return nil }
+        photos = Self.sampleNames.compactMap { name in
+            guard let url = Bundle.main.url(forResource:name,withExtension:"png",subdirectory:"Gallery") else { return nil }
             return NSImage(contentsOf:url)
         }
         galleryIndex = 0; resetInput()
@@ -94,8 +95,8 @@ final class DemoSession: ObservableObject {
             return
         }
         switch event {
-        case "next": galleryIndex = (galleryIndex+1) % (photos.isEmpty ? 5 : photos.count)
-        case "previous": galleryIndex = (galleryIndex+(photos.isEmpty ? 5 : photos.count)-1) % (photos.isEmpty ? 5 : photos.count)
+        case "next": galleryIndex = (galleryIndex+1) % (photos.isEmpty ? Self.sampleNames.count : photos.count)
+        case "previous": galleryIndex = (galleryIndex+(photos.isEmpty ? Self.sampleNames.count : photos.count)-1) % (photos.isEmpty ? Self.sampleNames.count : photos.count)
         default: return
         }
         lastNavigation = event == "next" ? "→" : "←"
@@ -128,7 +129,7 @@ struct DemoPanel: View {
                         Text("Open some photos to get started.").foregroundStyle(.white)
                     }
                 }.frame(maxHeight:.infinity)
-                HStack { Button("Previous") { demo.perform("previous") }; Text("\(demo.galleryIndex+1) / \(demo.photos.isEmpty ? 5 : demo.photos.count)"); Button("Next") { demo.perform("next") }; Spacer(); Button("Sample photos") { demo.loadSamplePhotos() }; Button("Open images…") { demo.openPhotos() } }
+                HStack { Button("Previous") { demo.perform("previous") }; Text("\(demo.galleryIndex+1) / \(demo.photos.isEmpty ? DemoSession.sampleNames.count : demo.photos.count)"); Button("Next") { demo.perform("next") }; Spacer(); Button("Sample images") { demo.loadSamplePhotos() }; Button("Open images…") { demo.openPhotos() } }
             case .zoom, .scroll, .signal, .distance, .position: EmptyView()
             }
             Text("Keep this window in front while practicing.").font(.caption).foregroundStyle(.secondary)
@@ -149,7 +150,7 @@ func testDemoModes() {
         feed(dir == "APPROACHING" ? "MOVING AWAY" : "APPROACHING",20)
         testCheck(events == [expected],"Demo gesture / return suppression: \(mode) \(events)")
     }
-    let session = DemoSession(); testCheck(session.photos.count == 5,"Bundled gallery photos missing"); session.photos = [NSImage(size:NSSize(width:1,height:1)),NSImage(size:NSSize(width:1,height:1))]
+    let session = DemoSession(); testCheck(session.photos.count == DemoSession.sampleNames.count,"Bundled gallery images missing"); session.photos = [NSImage(size:NSSize(width:1,height:1)),NSImage(size:NSSize(width:1,height:1))]
     session.perform("previous"); testCheck(session.galleryIndex == 1)
     session.perform("next"); testCheck(session.galleryIndex == 0)
     var delivered: [String] = []

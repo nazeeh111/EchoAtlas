@@ -4,7 +4,7 @@
 
 Control your Mac with hand gestures using its built-in speakers and microphone. A native macOS workspace for scrolling, photo navigation, zoom, and experimental acoustic sensing.
 
-**This is an experiment in progress.** Apple silicon · macOS 14 or later · local audio processing.
+Apple silicon · macOS 14 or later · local audio processing.
 
 ## Download
 
@@ -37,9 +37,9 @@ To build, test, install to `~/Applications/EchoAtlas.app`, and launch, run `./sc
 - **Signal:** inspect microphone frequency changes and motion visualizations.
 - **Distance and Position:** explore experimental echo estimates.
 
-Choose a mode in the left rail. The gesture guide explains the motion, and the practice canvas lets you try manual controls before starting sound. Click **Start**, hold still through calibration, then move your hand. Switch to another app to control compatible content.
+Choose a mode in the top navigation. The gesture guide explains the motion, and the practice canvas lets you try manual controls before starting sound. Click **Start**, hold still through calibration, then move your hand. Switch to another app to control compatible content.
 
-Microphone permission is needed for sensing; Accessibility permission is needed to control other apps. Stop immediately with the visible **Stop** button, menu bar controls, Escape in the app, or **Control–Option–Command–Space**. Sessions continue until stopped.
+Microphone permission is needed for sensing; Accessibility permission is needed to control other apps. Stop immediately with the visible **Stop** button, menu bar controls, Escape in the app, or **Control–Option–Command–Space**. Sessions continue until stopped. EchoAtlas also stops when the Mac sleeps, microphone readings disappear, or audio processing falls behind. It explains the failure and waits for you to press Start, which runs a fresh calibration.
 
 ## Audio and calibration
 
@@ -70,4 +70,4 @@ The preserved synthetic suite covers audio transforms, gesture decisions, return
 
 Physical gesture accuracy, speaker levels, and battery use vary with the Mac and room. Live-hand acceptance and cross-device accuracy testing are still needed. Distance and Position remain experimental estimates. Source builds are ad-hoc signed; the optional release-packaging script requires your own signing/notarization setup and is not needed for local use.
 
-Maintained by **nazeeh111**. Bundled third-party media retains its [separate notices](THIRD_PARTY_NOTICES.md).
+Maintained by **nazeeh111**. See [component and asset notices](THIRD_PARTY_NOTICES.md).

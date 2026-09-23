@@ -6,35 +6,33 @@ trap 'rm -rf "$SONAR_STAGE"' EXIT
 SONAR_APP="$SONAR_STAGE/EchoAtlas.app"
 mkdir -p "$SONAR_APP/Contents/MacOS" "$SONAR_APP/Contents/Resources"
 cp LICENSE THIRD_PARTY_NOTICES.md "$SONAR_APP/Contents/Resources/"
-ditto assets/zoom "$SONAR_APP/Contents/Resources/Zoom"
 ditto assets/gallery "$SONAR_APP/Contents/Resources/Gallery"
-cp assets/sonar.png "$SONAR_APP/Contents/Resources/SonarMark.png"
 SONAR_ICONSET="$SONAR_STAGE/Sonar.iconset"
 mkdir -p "$SONAR_ICONSET"
-swift script/render_icon.swift assets/sonar.png "$SONAR_STAGE/DockIcon.png"
+swift script/render_icon.swift "$SONAR_STAGE/DockIcon.png"
 for size in 16 32 128 256 512; do
   sips -z "$size" "$size" "$SONAR_STAGE/DockIcon.png" --out "$SONAR_ICONSET/icon_${size}x${size}.png" >/dev/null
   double=$((size * 2))
   sips -z "$double" "$double" "$SONAR_STAGE/DockIcon.png" --out "$SONAR_ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$SONAR_ICONSET" -o "$SONAR_APP/Contents/Resources/Sonar.icns"
-# Bundle the reading paper; allow an explicit local replacement.
-SONAR_LOCAL_PAPER="${SONAR_PAPER_PATH:-assets/paper/SoundWave.pdf}"
+# Bundle the original gesture guide; allow an explicit local replacement.
+SONAR_LOCAL_PAPER="${SONAR_PAPER_PATH:-assets/paper/EchoAtlasGuide.pdf}"
 if [[ -f "$SONAR_LOCAL_PAPER" ]]; then
-  cp "$SONAR_LOCAL_PAPER" "$SONAR_APP/Contents/Resources/SoundWave.pdf"
+  cp "$SONAR_LOCAL_PAPER" "$SONAR_APP/Contents/Resources/EchoAtlasGuide.pdf"
 elif [[ -n "${SONAR_PAPER_PATH:-}" ]]; then
   echo "PDF not found: $SONAR_PAPER_PATH" >&2
   exit 1
 fi
-swiftc -target arm64-apple-macosx14.0 -O work/Sonar/main.swift work/Sonar/HardwareAudio.swift work/Sonar/SpeakerVolume.swift work/Sonar/Diagnostics.swift work/Sonar/DeviceSetup.swift work/Sonar/SystemScroll.swift work/Sonar/DemoModes.swift work/Sonar/WaveCalibration.swift work/Sonar/ContentView.swift work/Sonar/ControlModeView.swift work/Sonar/SignalView.swift work/Sonar/AudioSignalView.swift work/Sonar/Distance.swift work/Sonar/Position.swift work/Sonar/EchoFlowView.swift work/Sonar/Zoom.swift -o "$SONAR_APP/Contents/MacOS/EchoAtlas" -framework AppKit -framework SwiftUI -framework AVFoundation -framework Accelerate -framework CoreAudio -framework PDFKit -framework Carbon -framework ApplicationServices
+swiftc -target arm64-apple-macosx14.0 -O work/Sonar/main.swift work/Sonar/AudioDelivery.swift work/Sonar/SensingReplay.swift work/Sonar/HardwareAudio.swift work/Sonar/SpeakerVolume.swift work/Sonar/Diagnostics.swift work/Sonar/DeviceSetup.swift work/Sonar/SystemScroll.swift work/Sonar/DemoModes.swift work/Sonar/WaveCalibration.swift work/Sonar/ContentView.swift work/Sonar/ControlModeView.swift work/Sonar/SignalView.swift work/Sonar/AudioSignalView.swift work/Sonar/Distance.swift work/Sonar/Position.swift work/Sonar/EchoFlowView.swift work/Sonar/Zoom.swift -o "$SONAR_APP/Contents/MacOS/EchoAtlas" -framework AppKit -framework SwiftUI -framework AVFoundation -framework Accelerate -framework CoreAudio -framework PDFKit -framework Carbon -framework ApplicationServices
 cat > "$SONAR_APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>EchoAtlas</string>
 <key>CFBundleIdentifier</key><string>com.nazeeh.echoatlas</string>
-<key>CFBundleShortVersionString</key><string>0.1.4</string>
-<key>CFBundleVersion</key><string>11</string>
+<key>CFBundleShortVersionString</key><string>0.2.0</string>
+<key>CFBundleVersion</key><string>12</string>
 <key>CFBundleName</key><string>EchoAtlas</string>
 <key>CFBundleDisplayName</key><string>EchoAtlas</string>
 <key>CFBundleIconFile</key><string>Sonar.icns</string>
@@ -63,7 +61,12 @@ mkdir -p outputs
 # Replace generated output so an optional PDF from an older build cannot linger.
 rm -rf "outputs/EchoAtlas.app"
 ditto --noextattr --norsrc "$SONAR_APP" "outputs/EchoAtlas.app"
-ditto -c -k --keepParent --noextattr "outputs/EchoAtlas.app" outputs/EchoAtlas.zip
+# Omit AppleDouble sidecars: generic ZIP extractors otherwise leave extra files
+# inside the signed bundle and invalidate its sealed resources.
+ditto -c -k --keepParent --noextattr --norsrc "outputs/EchoAtlas.app" outputs/EchoAtlas.zip
+mkdir "$SONAR_STAGE/archive-check"
+/usr/bin/unzip -q outputs/EchoAtlas.zip -d "$SONAR_STAGE/archive-check"
+codesign --verify --strict "$SONAR_STAGE/archive-check/EchoAtlas.app"
 if [[ "${1:-}" == "--build-only" ]]; then
   echo "Built and tested: outputs/EchoAtlas.app"
   exit 0

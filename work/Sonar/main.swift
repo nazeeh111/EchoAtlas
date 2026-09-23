@@ -202,7 +202,7 @@ final class Reader: ObservableObject {
         pdf.displayDirection = .vertical
         pdf.autoScales = true
         pdf.backgroundColor = NSColor(calibratedWhite: 0.12, alpha: 1)
-        if let url = Bundle.main.url(forResource: "SoundWave", withExtension: "pdf") {
+        if let url = Bundle.main.url(forResource: "EchoAtlasGuide", withExtension: "pdf") {
             pdf.document = PDFDocument(url: url)
         }
         if pdf.document == nil {
@@ -223,13 +223,13 @@ final class Reader: ObservableObject {
     var scroller: NSScrollView? {
         pdf.documentView?.enclosingScrollView
     }
-    func consume(_ reading: Reading, duration: Double) {
+    func consume(_ reading: Reading, duration: Double, capturedAt: Double = ProcessInfo.processInfo.systemUptime) {
         if mode == .zoom {
             let pid = localZoom ? ProcessInfo.processInfo.processIdentifier : AppZoom.pid
             guard canScroll else { zoomMotion.clearEvidence(); zoomFeedback = zoomPractice ? "Bring EchoAtlas to the front" : "Paused · bring another app to the front"; return }
             if zoomPID != pid { zoomMotion = ZoomMotion(); zoomPID = pid }
             let previousZoom = zoomMotion
-            if let zoomAction = zoomMotion.feed(reading, now:ProcessInfo.processInfo.systemUptime, reversed:zoomReversed) {
+            if let zoomAction = zoomMotion.feed(reading, now:capturedAt, reversed:zoomReversed) {
                 if localZoom || AppZoom.send(action:zoomAction) {
                     if localZoom { zoomScale = [1.0,1.15,1.3,1.5][zoomMotion.steps] }; zoomIndicator = zoomAction > 0 ? "+" : "−"; zoomFeedback = zoomAction > 0 ? "Zoomed in · pull back to reset" : zoomAction == 0 ? "Zoom return sent · push to zoom" : "Zooming out · keep pulling back" }
                 else { zoomMotion = previousZoom; zoomFeedback = "Paused · click the photo or page outside text fields" }
@@ -237,7 +237,7 @@ final class Reader: ObservableObject {
             return
         }
         guard canScroll else { resetMotion(); return }
-        let now = ProcessInfo.processInfo.systemUptime
+        let now = capturedAt
         if mode == .signal { signal.append(reading,now:now); return }
         if mode != .scroll { demo.consume(reading,mode:mode,now:now); if gestureFeedback != demo.feedback { gestureFeedback = demo.feedback }; return }
         motion.feed(direction:reading.direction,strength:reading.strength,now:now)
@@ -384,6 +384,7 @@ final class Sonar: ObservableObject {
     @Published var route = "Built-in speakers + microphone • AirPods excluded"
     @Published var speakerState = SpeakerVolume.State.unknown
     private var volumeTimer: Timer?
+    private var sleepObserver: NSObjectProtocol?
     var speakerWarning: String? {
         switch speakerState {
         case .silent: return "EchoAtlas needs sound to detect your hand. Unmute your Mac’s built-in speakers and raise the volume at least one step so gestures can work."
@@ -395,8 +396,15 @@ final class Sonar: ObservableObject {
         if let profile = SetupProfile.load() { frequency = profile.frequency; level = profile.amplitude }
         refreshSpeakerVolume()
         volumeTimer = Timer.scheduledTimer(withTimeInterval:0.5,repeats:true) { [weak self] _ in self?.refreshSpeakerVolume() }
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.willSleepNotification,object:nil,queue:.main) { [weak self] _ in
+            guard let self, self.running || self.starting || self.diagnosticsOpen else { return }
+            self.stop(); self.status = "Stopped for sleep — press Start when you’re ready to recalibrate."
+        }
     }
-    deinit { volumeTimer?.invalidate() }
+    deinit {
+        volumeTimer?.invalidate()
+        if let sleepObserver { NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver) }
+    }
     private var lastSpeakerVolume: SpeakerVolume.Snapshot?
     func refreshSpeakerVolume() {
         let current = SpeakerVolume.snapshot()
@@ -417,6 +425,20 @@ final class Sonar: ObservableObject {
     private var timer: Timer?
     var globalControlsReady = false
     private var session = UUID()
+    private var delivery: AudioDelivery?
+    private var inputFreshness = InputFreshness(startedAt:0)
+    private func audioFailed(_ reason: String, session id: UUID) {
+        guard session == id, running else { return }
+        stop(); status = reason
+    }
+    private func acceptInput(capturedAt: Double, session id: UUID) -> Bool {
+        guard session == id, running else { return false }
+        guard inputFreshness.accept(capturedAt:capturedAt,now:ProcessInfo.processInfo.systemUptime) else {
+            audioFailed("Audio readings were delayed — sound is off. Close busy audio tools, then press Start to recalibrate.",session:id)
+            return false
+        }
+        return true
+    }
     @Published var setupOpen = false
     @Published var diagnosticsOpen = false
     var cancelDiagnostics: (() -> Void)?
@@ -474,33 +496,61 @@ final class Sonar: ObservableObject {
             let analyzer = Analyzer(rate:rate,tone:tone)
             var samples: [Float] = []; samples.reserveCapacity(8192)
             session = UUID(); let id = session
+            let delivery = AudioDelivery()
+            self.delivery = delivery
+            inputFreshness = InputFreshness(startedAt:ProcessInfo.processInfo.systemUptime)
             let e = HardwareAudio(tone:tone,amplitude:level,ranging:ranging,positioning:positioning) { [weak self] block in
-                self?.analysisQueue.async { [weak self] in
+                let capturedAt = ProcessInfo.processInfo.systemUptime
+                switch delivery.reserve() {
+                case .cancelled: return
+                case .overloaded:
+                    DispatchQueue.main.async { [weak self] in
+                        self?.audioFailed("Audio processing fell behind — sound is off. Close busy audio tools, then press Start to recalibrate.",session:id)
+                    }
+                    return
+                case .accepted: break
+                }
+                guard let self else { delivery.complete(); return }
+                self.analysisQueue.async { [weak self] in
+                    guard delivery.isActive else { delivery.complete(); return }
                     samples.append(contentsOf:block)
                     if let ranger = rangeAnalyzer {
+                        var results: [(RangeReading,RangeReading?,Double)] = []
                         while samples.count >= ranger.n {
                             let window = Array(samples.prefix(ranger.n))
-                            let result = ranger.analyze(window)
-                            let right = rightAnalyzer?.analyze(window)
+                            let time = capturedAt - Double(samples.count-ranger.n)/rate
+                            results.append((ranger.analyze(window),rightAnalyzer?.analyze(window),time))
                             samples.removeFirst(ranger.hop)
-                            DispatchQueue.main.async { [weak self] in
-                                guard let self, self.session == id, self.running else { return }
-                                if let right { self.position.receive(left:result,right:right) }
-                                else { self.distance.receive(result) }
-                                self.status=result.status
-                                self.calibrationRemaining = result.calibrationRemaining
+                        }
+                        DispatchQueue.main.async { [weak self] in
+                            delivery.deliverIfActive {
+                                guard let self else { return }
+                                for (result,right,time) in results {
+                                    guard delivery.isActive, self.acceptInput(capturedAt:time,session:id) else { return }
+                                    if let right { self.position.receive(left:result,right:right) }
+                                    else { self.distance.receive(result) }
+                                    self.status=result.status
+                                    self.calibrationRemaining = result.calibrationRemaining
+                                }
                             }
                         }
                         return
                     }
+                    var readings: [(Reading,Double)] = []
                     while samples.count >= analyzer.n {
-                        let r = analyzer.analyze(Array(samples.prefix(analyzer.n)))
+                        let time = capturedAt - Double(samples.count-analyzer.n)/rate
+                        readings.append((analyzer.analyze(Array(samples.prefix(analyzer.n))),time))
                         samples.removeFirst(analyzer.hop)
-                        DispatchQueue.main.async { [weak self] in
-                            guard let self = self, self.session == id, self.running else { return }
-                            self.reading = r; self.status = r.direction
-                            self.calibrationRemaining = r.calibrationRemaining
-                            self.reader.consume(RestMotionFilter.apply(r,threshold:threshold),duration:Double(analyzer.hop)/rate)
+                    }
+                    DispatchQueue.main.async { [weak self] in
+                        delivery.deliverIfActive {
+                            guard let self else { return }
+                            for (r,time) in readings {
+                                guard delivery.isActive, self.acceptInput(capturedAt:time,session:id) else { return }
+                                self.reading = r; self.status = r.direction
+                                self.calibrationRemaining = r.calibrationRemaining
+                                self.reader.consume(RestMotionFilter.apply(r,threshold:threshold),duration:Double(analyzer.hop)/rate,capturedAt:time)
+                            }
                         }
                     }
                 }
@@ -512,11 +562,16 @@ final class Sonar: ObservableObject {
             reader.startMotion()
             route = "MacBook audio • mic \(Int(e.inputRate)) Hz / speakers \(Int(e.outputRate)) Hz"
             status = "Calibrating — hands still"
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            let monitor = Timer(timeInterval:0.25,repeats:true) { [weak self] _ in
                 guard let self = self else { return }
+                if self.inputFreshness.expired(now:ProcessInfo.processInfo.systemUptime) {
+                    self.audioFailed("Microphone readings stopped — sound is off. Check Microphone access in System Settings, then press Start to recalibrate.",session:id)
+                    return
+                }
                 self.reader.refreshPermission()
                 if self.reader.usesExternalControl && !self.reader.accessibilityGranted { self.stop(); self.status = "Accessibility permission was removed."; return }
             }
+            RunLoop.main.add(monitor,forMode:.common); timer = monitor
         } catch {
             stop(); status = "Could not start: \(error.localizedDescription)"
         }
@@ -524,11 +579,11 @@ final class Sonar: ObservableObject {
     func stop() {
         cancelDiagnostics?()
         startAttempt = UUID(); starting = false; calibrationRemaining = nil
-        session = UUID(); timer?.invalidate(); timer = nil
+        session = UUID(); delivery?.cancel(); delivery = nil; timer?.invalidate(); timer = nil
         engine?.stop(); engine = nil
         position.reset()
         distance.reading.cm=nil; distance.reading.quality=0; distance.reading.status="Stopped · start again to measure"
-        running = false; status = "Stopped — sound is off"
+        running = false; reading = nil; status = "Stopped — sound is off"
         reader.stopMotion()
     }
 }
@@ -757,6 +812,8 @@ if CommandLine.arguments.contains("--self-test-failure-probe") {
 }
 
 if CommandLine.arguments.contains("--self-test") {
+    testAudioDelivery()
+    testSensingReplay()
     testEchoFlow()
     testPosition()
     testSpeakerVolume()

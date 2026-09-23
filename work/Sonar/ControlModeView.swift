@@ -2,29 +2,22 @@ import AppKit
 import SwiftUI
 
 struct ControlModeView: View {
-    @State private var showZoomHelp = false
+    @State private var showGestureGuide = false
     @ObservedObject var sonar: Sonar
     @ObservedObject var reader: Reader
     @ObservedObject var demo: DemoSession
-    private var practice: Bool { true }
-    private var appName: String {
-        "Other apps"
-    }
     private var instruction: String {
         switch reader.mode {
-        case .scroll: return "Lift your hand up and down to scroll. Do a double tap (in the air!) to reverse directions."
-        case .gallery: return demo.wave.reversed ? "Move your hand to the left for the next photo, or to the right to go back." : "Move your hand to the right for the next photo, or to the left to go back."
-        default: return reader.zoomReversed ? "Pull your hand toward you to zoom in. Move it toward the screen to zoom back out." : "Move your hand toward the screen to zoom in. Pull it back toward you to zoom out."
+        case .scroll: return "Lift your palm to scroll. Lower it to stop."
+        case .gallery: return demo.wave.reversed ? "Sweep left for the next image. Sweep right to go back." : "Sweep right for the next image. Sweep left to go back."
+        default: return reader.zoomReversed ? "Pull toward you to zoom in; push away to return." : "Push toward the screen to zoom in; pull back to return."
         }
     }
     private var detail: String {
         switch reader.mode {
-        case .scroll:
-            return reader.airTapEnabled ? "To change the scrolling direction, tap downward twice in the air without touching the keyboard." : "Double-tap is off. Use the direction button to switch up or down."
-        case .gallery:
-            return practice ? "Keep your hand above the keyboard with your palm facing the keys. Wait a moment before moving it back so you don’t accidentally change photos again." : "Open a photo in Photos, a browser, or another app first. If your keyboard’s arrow keys change photos, your hand can too. Wait a moment between hand movements."
-        default:
-            return practice ? "Hold your hand above the keyboard as you move it. The picture gets bigger, then returns to its starting size. Move your hand back faster for a quicker return." : "Open a photo or page in another app. EchoAtlas uses its zoom-in and zoom-out shortcuts as you move your hand."
+        case .scroll: return reader.airTapEnabled ? "Two short downward pushes switch direction." : "Use the direction control to switch up or down."
+        case .gallery: return "Pause briefly before returning your hand to avoid a second swipe."
+        default: return reader.zoomReversed ? "A faster push returns the image to its starting size sooner." : "A faster pull returns the image to its starting size sooner."
         }
     }
     private var feedback: String {
@@ -38,99 +31,106 @@ struct ControlModeView: View {
         }
     }
     var body: some View {
-        ScreenBody {
-            VStack(alignment:.leading,spacing:16) {
-                Label("GESTURE GUIDE",systemImage:"hand.wave").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1.4).foregroundStyle(AtlasTheme.accent)
-                Text(instruction).font(.system(size:16,weight:.medium)).fixedSize(horizontal:false,vertical:true)
-                Text("Try the preview below. Switch to another app to control it with the same gesture.")
-                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-                if reader.mode == .zoom || reader.mode == .scroll || reader.mode == .gallery {
-                    Button { showZoomHelp = true } label: {
-                        HStack(spacing:10) {
-                            Image(systemName:"play.circle.fill")
-                                .font(.system(size:18)).foregroundStyle(.secondary)
-                            Text("Watch the gesture").font(.system(size:13,weight:.medium))
-                        }.padding(.horizontal,10).padding(.vertical,7)
-                            .background(Color(nsColor:.controlBackgroundColor),in:RoundedRectangle(cornerRadius:10))
-                            .overlay(RoundedRectangle(cornerRadius:10).strokeBorder(Color.primary.opacity(0.1)))
-                            .contentShape(RoundedRectangle(cornerRadius:10))
-                    }.buttonStyle(.plain).help("Watch the gesture")
-                        .sheet(isPresented:$showZoomHelp) {
-                            AppSheet(title:reader.mode == .scroll ? "Lift your hand to scroll" : reader.mode == .gallery ? "Sweep your hand to swipe" : "Push and pull to zoom",close:{ showZoomHelp = false }) {
-                                VStack(alignment:.leading,spacing:20) {
-                                    Text(reader.mode == .scroll ? "Lift your hand up and down to scroll. Do a double tap (in the air!) to reverse directions." : reader.mode == .gallery ? "Sweep your hand sideways to change photos. Pause before returning your hand." : "Push toward the screen to zoom in. Pull back toward yourself to zoom out.")
-                                        .font(.callout).foregroundStyle(.secondary)
-                                    GesturePreview(resource:reader.mode == .scroll ? "scroll" : reader.mode == .gallery ? "swipe" : "push-pull").frame(height:320).clipped().clipShape(RoundedRectangle(cornerRadius:18))
-                                }
-                            }
-                        }
+        ScrollView {
+            VStack(alignment:.leading,spacing:12) {
+                HStack(alignment:.top,spacing:16) {
+                    practiceCanvas
+                    guideRail.frame(width:244)
                 }
-                Divider()
-                HStack(spacing:16) {
-                    VStack(alignment:.leading,spacing:4) {
-                        Text(sonar.starting || sonar.running ? feedback : "Keep your hand still for the 3-second countdown")
-                            .font(.callout.weight(.medium)).fixedSize(horizontal:false,vertical:true)
-                        Text(sonar.running ? "Stop anytime with ⌃⌥⌘Space" : "Then move your hand above the keyboard.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if sonar.starting { ProgressView().controlSize(.small) }
-
+                HStack(spacing:10) {
+                    Text("MANUAL PRACTICE").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1.2).foregroundStyle(AtlasTheme.muted)
+                    Rectangle().fill(AtlasTheme.line).frame(height:1)
                 }
-            }.padding(22).frame(maxWidth:.infinity,alignment:.leading)
-                .background(AtlasTheme.card,in:RoundedRectangle(cornerRadius:20))
-                .overlay(RoundedRectangle(cornerRadius:20).strokeBorder(AtlasTheme.accent.opacity(0.12)))
-            HStack {
-                Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-                Spacer(minLength:20)
-                options
+                HStack(spacing:10) { actions }.controlSize(.regular).frame(minHeight:32)
+                Text("Practice here, or switch to another app that supports the same shortcuts. External control needs Accessibility access.")
+                    .font(.caption).foregroundStyle(AtlasTheme.muted).fixedSize(horizontal:false,vertical:true)
             }
+            .padding(.horizontal,28).padding(.bottom,16)
+            .frame(maxWidth:1180)
+            .frame(maxWidth:.infinity,alignment:.top)
+        }.frame(maxWidth:.infinity,maxHeight:.infinity)
+    }
+    private var practiceCanvas: some View {
+        VStack(alignment:.leading,spacing:0) {
             HStack {
-                Text("PRACTICE CANVAS").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1.4)
+                Text("PRACTICE CANVAS").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1.3).foregroundStyle(AtlasTheme.muted)
                 Spacer()
-                Text("MANUAL CONTROLS BELOW").font(.system(size:9,design:.monospaced))
-            }.foregroundStyle(.secondary)
-            GeometryReader { space in
-                let width = min(space.size.width, ScreenLayout.previewWidth)
-                let height = ScreenLayout.previewHeight
-                stage.frame(width:width,height:height)
-                    .clipShape(RoundedRectangle(cornerRadius:18))
-                    .overlay(RoundedRectangle(cornerRadius:18).strokeBorder(.primary.opacity(0.08)))
-                    .frame(maxWidth:.infinity,maxHeight:.infinity)
-            }.frame(height:ScreenLayout.previewHeight)
-            HStack(spacing:10) { actions }.controlSize(.regular).frame(height:32)
-            ExperimentStatus(text:feedback,symbol:sonar.running ? "waveform" : "circle.dotted")
+                if reader.mode == .gallery {
+                    Text("\(demo.galleryIndex + 1) / \(max(1,demo.photos.count))").monospacedDigit().font(.caption).foregroundStyle(AtlasTheme.muted)
+                } else if reader.mode == .zoom {
+                    Text("\(Int(reader.zoomScale*100))%").monospacedDigit().font(.caption).foregroundStyle(AtlasTheme.muted)
+                }
+            }.padding(.horizontal,16).padding(.vertical,13)
+            Rectangle().fill(AtlasTheme.line).frame(height:1)
+            GeometryReader { geometry in
+                stage.frame(width:geometry.size.width,height:geometry.size.height)
+            }.frame(height:348)
         }
+        .background(AtlasTheme.card,in:RoundedRectangle(cornerRadius:15))
+        .overlay(RoundedRectangle(cornerRadius:15).stroke(AtlasTheme.line,lineWidth:1))
+        .clipShape(RoundedRectangle(cornerRadius:15))
+        .frame(maxWidth:.infinity)
+    }
+    private var guideRail: some View {
+        VStack(alignment:.leading,spacing:12) {
+            Label("HOW TO MOVE",systemImage:"hand.draw").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1.2).foregroundStyle(AtlasTheme.accent)
+            Text(instruction).font(.system(size:17,weight:.semibold,design:.rounded)).fixedSize(horizontal:false,vertical:true)
+            Text(detail).font(.callout).foregroundStyle(AtlasTheme.muted).fixedSize(horizontal:false,vertical:true)
+            Button { showGestureGuide = true } label: {
+                Label("See gesture guide",systemImage:"arrow.up.right").font(.callout.weight(.semibold))
+            }.buttonStyle(.plain).foregroundStyle(AtlasTheme.accent)
+                .sheet(isPresented:$showGestureGuide) {
+                    AppSheet(title:"\(reader.mode.rawValue) gesture",close:{ showGestureGuide = false },width:520,height:480) {
+                        VStack(alignment:.leading,spacing:20) {
+                            Text(instruction).font(.title3.weight(.semibold))
+                            GestureGuideDiagram(mode:reader.mode).frame(height:250)
+                            Text(detail).font(.callout).foregroundStyle(.secondary)
+                            Text("EchoAtlas senses changes in reflected sound, so the illustration is a movement guide rather than measured hand tracking.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            Rectangle().fill(AtlasTheme.line).frame(height:1)
+            Text(sonar.starting || sonar.running ? feedback : "Keep still for the 3-second countdown, then move your hand.")
+                .font(.callout.weight(.medium)).fixedSize(horizontal:false,vertical:true)
+            Text(sonar.running ? "Stop anytime with ⌃⌥⌘Space" : "Sound starts only when you press Start.")
+                .font(.caption).foregroundStyle(AtlasTheme.muted).fixedSize(horizontal:false,vertical:true)
+            Spacer(minLength:2)
+            options
+        }
+        .padding(17)
+        .frame(maxWidth:.infinity,minHeight:390,alignment:.topLeading)
+        .background(AtlasTheme.sidebar.opacity(0.5),in:RoundedRectangle(cornerRadius:15))
+        .overlay(RoundedRectangle(cornerRadius:15).stroke(AtlasTheme.line,lineWidth:1))
     }
     @ViewBuilder private var options: some View {
         switch reader.mode {
         case .scroll:
-            Button(reader.forward ? "Direction: ↓" : "Direction: ↑") { reader.switchDirection() }
-        case .gallery: WaveDirectionToggle(wave:demo.wave)
-        default: Toggle("Reverse gestures",isOn:$reader.zoomReversed).toggleStyle(.switch).controlSize(.small)
+            Button(reader.forward ? "Direction: down ↓" : "Direction: up ↑") { reader.switchDirection() }
+                .buttonStyle(.bordered)
+        case .gallery:
+            WaveDirectionToggle(wave:demo.wave)
+        default:
+            Toggle("Reverse gestures",isOn:$reader.zoomReversed).toggleStyle(.switch).controlSize(.small)
         }
     }
     @ViewBuilder private var stage: some View {
-        if !practice {
-            ZStack {
-                Color.primary.opacity(0.025)
-                VStack(spacing:18) {
-                    Image(systemName:reader.mode.symbol).font(.system(size:56,weight:.light)).foregroundStyle(Color.accentColor)
-                    Text("Control \(appName)").font(.title2.weight(.semibold))
-                    Text(reader.mode == .scroll ? "Place your mouse pointer over the area you want to scroll." : reader.mode == .gallery ? "EchoAtlas sends arrow keys to the active image viewer." : "EchoAtlas sends zoom shortcuts to the app you’re using.").foregroundStyle(.secondary)
-                }.padding(24)
-            }
-        } else if reader.mode == .scroll {
+        if reader.mode == .scroll {
             PaperView(reader:reader)
         } else {
             GeometryReader { geometry in
                 ZStack {
-                    Color(nsColor:.controlBackgroundColor)
-                    if let photo = previewImage {
-                        Image(nsImage:photo).resizable().scaledToFit()
+                    AtlasTheme.sidebar.opacity(0.4)
+                    if let image = previewImage {
+                        Image(nsImage:image).resizable().scaledToFit()
                             .frame(width:geometry.size.width,height:geometry.size.height)
                             .scaleEffect(reader.mode == .zoom ? reader.zoomScale : 1)
                             .animation(.easeOut(duration:0.10),value:reader.zoomScale)
+                    } else {
+                        VStack(spacing:8) {
+                            Image(systemName:"photo").font(.system(size:30))
+                            Text("Open an image to practice").font(.callout)
+                        }.foregroundStyle(AtlasTheme.muted)
                     }
                 }.clipped()
             }
@@ -140,56 +140,72 @@ struct ControlModeView: View {
         if reader.mode == .gallery {
             return demo.photos.isEmpty ? nil : demo.photos[demo.galleryIndex % demo.photos.count]
         }
-        guard let url = Bundle.main.url(forResource:"yoda",withExtension:"jpeg",subdirectory:"Zoom") else { return nil }
+        guard let url = Bundle.main.url(forResource:"material-metal",withExtension:"png",subdirectory:"Gallery") else { return nil }
         return NSImage(contentsOf:url)
     }
     @ViewBuilder private var actions: some View {
         switch reader.mode {
         case .scroll:
-            if practice {
-                Button("Scroll up") { reader.scroll(points:-180) }
-                Button("Scroll down") { reader.scroll(points:180) }
-            }
+            Button("Scroll up") { reader.scroll(points:-180) }
+            Button("Scroll down") { reader.scroll(points:180) }
             Spacer()
             Toggle("Air double-tap",isOn:$reader.airTapEnabled).toggleStyle(.switch).controlSize(.small)
         case .gallery:
-            Button("Previous") { if practice { demo.perform("previous") } else { reader.testAppSwipe(next:false) } }
-                .disabled(!practice && !reader.accessibilityGranted)
-            Button("Next") { if practice { demo.perform("next") } else { reader.testAppSwipe(next:true) } }
-                .disabled(!practice && !reader.accessibilityGranted)
+            Button("Previous") { demo.perform("previous") }
+            Button("Next") { demo.perform("next") }
             Spacer()
-            if practice {
-                Text("\(demo.galleryIndex+1) / \(demo.photos.count)").monospacedDigit().foregroundStyle(.secondary)
-                Menu("Photos") {
-                    Button("Open images…") { demo.openPhotos() }
-                    Button("Sample photos") { demo.loadSamplePhotos() }
-                }.fixedSize()
-            } else { Text("Uses left / right arrow keys").font(.caption).foregroundStyle(.secondary) }
+            Text("\(demo.galleryIndex+1) / \(max(1,demo.photos.count))").monospacedDigit().foregroundStyle(AtlasTheme.muted)
+            Menu("Images") {
+                Button("Open images…") { demo.openPhotos() }
+                Button("Sample images") { demo.loadSamplePhotos() }
+            }.fixedSize()
         default:
-            if practice {
-                Button("Zoom in") { reader.practiceZoom(3) }
-                Button("Reset") { reader.practiceZoom(0) }
-            }
+            Button("Zoom in") { reader.practiceZoom(3) }
+            Button("Reset") { reader.practiceZoom(0) }
             Spacer()
-            Text(practice ? "\(Int(reader.zoomScale*100))%" : "Uses the app’s zoom shortcuts").monospacedDigit().foregroundStyle(.secondary)
+            Text("\(Int(reader.zoomScale*100))%").monospacedDigit().foregroundStyle(AtlasTheme.muted)
         }
     }
 }
 
-private final class ContainedGestureImageView: NSImageView {
-    override var intrinsicContentSize: NSSize { NSSize(width:NSView.noIntrinsicMetric,height:NSView.noIntrinsicMetric) }
-}
-
-private struct GesturePreview: NSViewRepresentable {
-    let resource: String
-    func makeNSView(context:Context) -> NSImageView {
-        let view = ContainedGestureImageView()
-        view.imageScaling = .scaleProportionallyUpOrDown
-        view.animates = true
-        if let url = Bundle.main.url(forResource:resource,withExtension:"gif",subdirectory:"Zoom") {
-            view.image = NSImage(contentsOf:url)
+private struct GestureGuideDiagram: View {
+    let mode: DemoMode
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var movement: CGSize {
+        switch mode {
+        case .scroll: return CGSize(width:0,height:-65)
+        case .gallery: return CGSize(width:100,height:0)
+        default: return CGSize(width:45,height:-25)
         }
-        return view
     }
-    func updateNSView(_ view:NSImageView,context:Context) {}
+    private var directionSymbol: String {
+        switch mode {
+        case .scroll: return "arrow.up.and.down"
+        case .gallery: return "arrow.left.and.right"
+        default: return "arrow.up.right.and.arrow.down.left"
+        }
+    }
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius:16).fill(AtlasTheme.sidebar.opacity(0.55))
+            VStack(spacing:14) {
+                Image(systemName:directionSymbol).font(.system(size:34,weight:.light)).foregroundStyle(AtlasTheme.accent)
+                ZStack {
+                    RoundedRectangle(cornerRadius:14).stroke(AtlasTheme.line,lineWidth:2).frame(width:260,height:82)
+                    Image(systemName:"keyboard").font(.system(size:42,weight:.ultraLight)).foregroundStyle(AtlasTheme.muted)
+                    TimelineView(.animation(minimumInterval:1.0/30.0,paused:reduceMotion)) { timeline in
+                        let phase = reduceMotion ? 0 : sin(timeline.date.timeIntervalSinceReferenceDate * .pi / 1.8)
+                        Image(systemName:"hand.point.up.left.fill")
+                            .font(.system(size:58)).foregroundStyle(AtlasTheme.ink)
+                            .shadow(color:AtlasTheme.ink.opacity(0.12),radius:8,y:8)
+                            .offset(x:movement.width/2 * phase,y:movement.height/2 * phase - 35)
+                    }
+                }
+                Text(mode == .scroll ? "Lift · lower · repeat" : mode == .gallery ? "Sweep · pause · return" : "Push · pull · reset")
+                    .font(.system(size:11,weight:.bold,design:.monospaced)).tracking(1).foregroundStyle(AtlasTheme.muted)
+            }
+        }
+        .accessibilityElement(children:.ignore)
+        .accessibilityLabel(mode == .scroll ? "Hand lifts and lowers above the keyboard" : mode == .gallery ? "Hand sweeps sideways above the keyboard" : "Hand pushes and pulls above the keyboard")
+    }
 }

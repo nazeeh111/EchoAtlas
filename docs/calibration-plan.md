@@ -1,21 +1,16 @@
-# Per-Mac setup: local test build
+# Per-Mac setup and calibration
 
-1. Test one frequency at a time: 10-second sound check, user-prompted movement, then stopping. Offer 19/18 kHz after a failed 20 kHz trial, rather than making the user wait through every frequency first.
-2. Reject weak signals, clipped input, missing audio, volume/route changes, or unwanted Scroll/Swipe/Zoom decisions while still. Keep detector thresholds unchanged.
-3. Ask the user to lift/lower their palm, then stop. Keep the same analyzer and simulated detectors running across this transition; do not hide a failure with recalibration.
-4. Save the selected frequency only after stillness, movement, and stopping pass. Preserve an aggregate-only, manually exported setup report, including failed candidates.
-5. Offer setup on first launch and Recalibrate later. Cancellation, failure, or closing must stop audio and never save a success.
-6. Test the rejection rules, lifecycle, preferences, signed build, and visible UI locally. Maxwell and Emanuel must physically test before a public release.
+EchoAtlas setup checks the built-in audio path and teaches the motion filter what normal resting movement looks like on this Mac. Run **Settings → Recalibrate** after changing the audio route or speaker volume, or when gestures become unreliable.
 
-This measures basic acoustic sensing and simulated detector decisions. It does not prove every gesture or delivery to another app. Passing thresholds are provisional. Failure is a useful result, not evidence that a Mac is unsupported.
+## Setup sequence
 
-## Local implementation status
+1. Check the selected sound frequency and microphone input while your hands rest. Setup starts at 20 kHz; if the signal is unsuitable, try 19 kHz or 18 kHz.
+2. Hold your hand in its normal resting position while setup learns and verifies a movement threshold.
+3. Follow the on-screen lift/lower prompts, then hold still when prompted to stop. Setup checks that a deliberate movement is detected and that returning to rest stops the gesture.
+4. Save only when all checks pass and the speaker volume has remained steady. The saved threshold applies to the checked frequency and volume.
 
-- Implemented and installed as 0.1.4 (9), signed with the existing identity. No release published.
-- Regression checks reject the aggregate weak-tone and phantom-scrolling cases from the supplied reports. Existing gesture tests pass.
-- First-launch presentation, postponing setup, Start requiring setup, live stillness instructions, and cancellation checked in the app.
-- The move/stop hand trial and Maxwell's device trial remain physical acceptance checks. A passing build does not establish that his issue is fixed.
+If setup is cancelled or fails, audio stops and no new profile is saved. A failure report can be saved manually; it contains aggregate measurements and setup metadata, not microphone recordings. Fix the indicated permission, volume, or route issue before trying again. A failed check alone does not establish that a Mac is unsupported.
 
-UX correction: A weak/unstable initial signal still proceeds to the movement and stopping prompts. Evaluate the entire trial afterward; never save a failed trial. Only audio/permission/route failures interrupt early.
+## Validation limits
 
-Build 11: setup is optional and preserves prior settings. Positioning is unscored. A separate resting sample learns a bounded signal threshold; a second resting sample, intentional movement, and stopping validate it before saving. Runtime uses the same filter only for the tested frequency and volume. Physical acceptance remains pending.
+The 0.2 regression suite covers generated audio, setup thresholds, gesture decisions, and safe stopping. Those checks do not measure real-hand accuracy. Physical trials on the target Mac are still needed to assess speaker level and comfort, motion detection in different rooms, and behavior after audio-route or volume changes. External-app delivery and cross-device accuracy also need live testing. Distance and Position remain experimental estimates, not calibrated measurements.

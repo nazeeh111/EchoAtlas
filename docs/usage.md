@@ -1,25 +1,29 @@
 # Usage and development notes
 
-### Try Swipe
+## Start and stop
 
-1. Hold an open hand palm-down above the keyboard, then sweep sideways from one side to the other. Each accepted sweep moves one image.
-2. Pause before bringing your hand back. The return can still be mistaken for another swipe. If navigation feels backwards, turn on **Reverse directions**.
-3. In **Practice here**, try the bundled photos or open your own. In **Other apps**, open an image viewer and click the image first. Keep the app in front; the viewer must support left/right arrow keys. The Previous and Next buttons let you check that navigation works before trying your hand.
+Choose a mode in the top navigation and press **Start**. Keep your hand still through the calibration countdown, then try the gesture above the keyboard. Use the visible **Stop session** button, the menu bar, or **Control–Option–Command–Space** to stop. Switching modes also stops the current session.
 
-### Try Zoom
+**Settings → Recalibrate** checks the built-in speaker and microphone, then checks resting movement, a deliberate gesture, and stopping. Save settings only after the checks pass. A failed or cancelled setup saves nothing new.
 
-1. Hold your palm above the keyboard. Push toward the screen to enlarge; pull back toward yourself to return. **Reverse gestures** swaps these directions.
-2. In **Practice here**, Yoda enlarges to 150%. In **Other apps**, EchoAtlas sends three zoom-in steps. Keep the app in front with focus outside text fields.
-3. Pull back to zoom out again. A faster pull should produce a faster return, but it happens in steps and gesture recognition can miss. Native apps receive the matching zoom-out steps. Browsers finish with a reset to 100%, even if they started at a different zoom level.
+## Scroll
+
+Select **Scroll** to practice with the bundled EchoAtlas gesture guide. The **Scroll up** and **Scroll down** buttons move the page without audio. After starting, lift your palm to scroll and lower it to stop. Use the direction control to switch direction; **Air double-tap** enables two short downward pushes as another way to switch.
+
+## Swipe
+
+Select **Swipe** to browse the three bundled material studies. Use **Images → Open images…** to choose local images, or **Sample images** to restore the bundled set. The **Previous** and **Next** buttons work without audio. With sensing on, sweep sideways and pause before returning your hand. **Reverse directions** changes which sweep advances the gallery.
+
+## Zoom
+
+Select **Zoom** to inspect the bundled metal study. **Zoom in** and **Reset** work without audio. With sensing on, push toward the screen to zoom in and pull back to return. **Reverse gestures** swaps those actions.
+
+To control another app, bring compatible content to the front and grant Accessibility access. Scroll sends scroll events, Swipe sends left/right arrow keys, and Zoom uses Command-plus/minus. Browser zoom returns to 100% when EchoAtlas sends its reset. App behavior depends on the shortcuts it supports.
+
+## Signal, Distance, and Position
+
+**Signal** displays microphone frequency changes and motion visualizations. **Distance** and **Position** display experimental echo-delay estimates, not calibrated measurements. Room reflections, device response, and alignment affect those estimates.
 
 ## Developer options
 
-Set `SONAR_SIGNING_IDENTITY` to use your own signing certificate. Otherwise the script signs locally without a certificate. Set `SONAR_INSTALL_PATH` to keep an existing installation in its original location. Source files live in `work/EchoAtlas/`, and the executable is named `EchoAtlas`. The existing bundle identifier stays stable to preserve app identity.
-
-`SONAR_PAPER_PATH` optionally replaces the bundled SoundWave paper with a PDF of your choice. `--verify-audio` runs a short microphone/speaker check; `--verify-scroll` checks the practice reader with simulated gestures.
-
-### Other apps
-
-Swipe and Zoom can target the app in front, including Photos, Preview, and browsers. Swipe uses left/right arrow keys. Zoom uses Command-plus/minus, so it works where those shortcuts zoom the current photo or page. Click the content first; EchoAtlas pauses over text fields.
-
-In native apps, pulling back sends the matching zoom-out steps for the zoom-in steps EchoAtlas sent. Zoom limits and manual changes can affect the final view. Browsers keep the existing final reset to 100%. App support depends on its keyboard shortcuts.
+Source files are in `work/Sonar/`. Build and run the local checks with `./script/build_and_run.sh --build-only`. The script supports `SONAR_SIGNING_IDENTITY` for signing, `SONAR_INSTALL_PATH` for the install location, and `SONAR_PAPER_PATH` to supply a replacement PDF for the bundled gesture guide. The `--verify-audio` and `--verify-scroll` options run focused local checks.
