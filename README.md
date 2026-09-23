@@ -1,10 +1,18 @@
 # EchoAtlas
 
-**Development history:** Developed locally before publication. These repositories were uploaded together, so their GitHub publication dates do not indicate when development began.
+**Development history:** Developed locally using Git before publication. These projects were published to GitHub together, so similar upload dates do not indicate when development began.
 
 Control your Mac with hand gestures using its built-in speakers and microphone. A native macOS workspace for scrolling, photo navigation, zoom, and experimental acoustic sensing.
 
 **This is an experiment in progress.** Apple silicon · macOS 14 or later · local audio processing.
+
+## Download
+
+[Download EchoAtlas for Apple silicon](https://github.com/nazeeh111/EchoAtlas/releases/latest/download/EchoAtlas.zip) · [SHA-256 checksum](https://github.com/nazeeh111/EchoAtlas/releases/latest/download/EchoAtlas.zip.sha256)
+
+Requires an Apple silicon Mac running macOS 14 or later. Unzip the download and move `EchoAtlas.app` to Applications. This build is ad-hoc signed and is **not Apple-notarized**, so macOS may block its first launch. Review the release notes before deciding whether to allow it in System Settings → Privacy & Security. The source-build option below is also available.
+
+Microphone access is requested when you start sensing. Accessibility access is needed only to control other apps; the app has local practice modes. Existing permissions and preferences from another app are separate.
 
 ## Build and run
 
