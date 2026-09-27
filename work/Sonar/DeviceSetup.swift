@@ -133,6 +133,8 @@ final class DeviceSetup: ObservableObject {
     private var phaseStart = 0.0
     private var deadline = 0.0
     private var lastReading = 0.0
+    private var inputFreshness = InputFreshness(startedAt:0)
+    private var delivery: AudioDelivery?
     private var scroll = ScrollMotion()
     private var taps = DoublePushDetector()
     private var swipe = ImmediateWave()
@@ -157,7 +159,7 @@ final class DeviceSetup: ObservableObject {
         case .saved: return "Settings saved"
         }
     }
-    deinit { timer?.invalidate(); engine?.stop() }
+    deinit { delivery?.cancel(); timer?.invalidate(); engine?.stop() }
     private func transition(_ next: Stage, seconds: Double = 0, message: String) {
         stage = next; phaseStart = ProcessInfo.processInfo.systemUptime
         deadline = phaseStart + seconds; remaining = Int(ceil(seconds)); detail = message
@@ -188,11 +190,35 @@ final class DeviceSetup: ObservableObject {
     }
     private func runAudio(amplitude: Double) {
         halt(); let attempt = token; let frequency = current.frequency
+        let delivery = AudioDelivery(); self.delivery = delivery
+        inputFreshness = InputFreshness(startedAt:ProcessInfo.processInfo.systemUptime)
         var analyzer: Analyzer?
         var buffer: [Float] = []
         let audio = HardwareAudio(tone:frequency,amplitude:amplitude) { [weak self] block in
             let received = ProcessInfo.processInfo.systemUptime
-            self?.queue.async { [weak self] in
+            switch delivery.reserve() {
+            case .cancelled: return
+            case .overloaded:
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.token == attempt else { return }
+                    self.current.audioErrors += 1
+                    self.fail("Audio processing fell behind. Try again, or save this report for help.")
+                }
+                return
+            case .accepted: break
+            }
+            guard let self else { delivery.complete(); return }
+            self.queue.async { [weak self] in
+                guard delivery.isActive, self != nil else { delivery.complete(); return }
+                guard ProcessInfo.processInfo.systemUptime - received <= 0.25 else {
+                    delivery.cancel(); delivery.complete()
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self, self.token == attempt else { return }
+                        self.current.audioErrors += 1
+                        self.fail("Audio processing fell behind. Try again, or save this report for help.")
+                    }
+                    return
+                }
                 buffer.append(contentsOf:block)
                 var readings: [Reading] = []
                 if let analyzer {
@@ -202,8 +228,10 @@ final class DeviceSetup: ObservableObject {
                     }
                 } else { buffer.removeAll(keepingCapacity:true) }
                 DispatchQueue.main.async { [weak self] in
-                    guard let self, self.token == attempt, self.active else { return }
-                    self.receive(readings,block:block,time:received)
+                    delivery.deliverIfActive {
+                        guard let self, self.token == attempt, self.active else { return }
+                        self.receive(readings,block:block,time:received)
+                    }
                 }
             }
         }
@@ -221,8 +249,15 @@ final class DeviceSetup: ObservableObject {
         } catch { fail("EchoAtlas couldn’t start the built-in audio. Stop other audio tools and try again.") }
     }
     private func receive(_ readings: [Reading], block: [Float], time: Double) {
-        guard time >= phaseStart else { return }
-        if !readings.isEmpty { lastReading = ProcessInfo.processInfo.systemUptime }
+        guard time >= phaseStart,
+              inputFreshness.accept(capturedAt:time,now:ProcessInfo.processInfo.systemUptime) else {
+            if time >= phaseStart {
+                current.audioErrors += 1
+                fail("Audio processing fell behind. Try again, or save this report for help.")
+            }
+            return
+        }
+        if !readings.isEmpty { lastReading = time }
         if stage == .off { current.off.input(block) }
         if stage == .still { current.still.input(block) }
         if stage == .prepare && time - phaseStart >= 1 { current.preparation.input(block) }
@@ -312,6 +347,7 @@ final class DeviceSetup: ObservableObject {
         transition(.prepare,seconds:3,message:"Put your palm above the keyboard and hold it still. Wait for GO before moving.")
     }
     private func halt() {
+        delivery?.cancel(); delivery = nil
         token = UUID(); timer?.invalidate(); timer = nil
         engine?.stop(); engine = nil
     }
@@ -372,6 +408,30 @@ final class DeviceSetup: ObservableObject {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do { try "EchoAtlas setup report\n\(detail)\n\nTechnical details\n\(json)".write(to:url,atomically:true,encoding:.utf8) }
         catch { detail = "Couldn’t save the report. Choose another location and try again." }
+    }
+    static func testSyntheticDelivery() {
+        let setup = DeviceSetup()
+        let now = ProcessInfo.processInfo.systemUptime
+        setup.stage = .off; setup.phaseStart = now-10; setup.lastReading = now-10
+        setup.current.inputRate = 48000
+        setup.inputFreshness = InputFreshness(startedAt:now-10)
+        let sample = Reading(spectrum:[],baseline:[],direction:"Still / no clear motion",carrierDB:-50,snr:20,strength:0)
+        setup.receive([sample],block:[0.5],time:now-3)
+        testCheck(setup.current.off.frames == 0 && setup.current.off.peak == 0 && setup.lastReading == now-10 &&
+                  setup.stage == .failed && setup.current.audioErrors > 0,
+            "Queued old setup audio did not stop the check before changing measurements")
+        let fresh = DeviceSetup()
+        fresh.stage = .off; fresh.phaseStart = now-10; fresh.lastReading = now-10
+        fresh.current.inputRate = 48000
+        fresh.inputFreshness = InputFreshness(startedAt:now-10)
+        fresh.receive([sample],block:[0.5],time:now-0.1)
+        testCheck(fresh.current.off.frames == 1 && fresh.current.off.peak == 0.5 && fresh.lastReading == now-0.1,
+            "Fresh setup audio did not retain its capture time and measurements")
+        setup.delivery = AudioDelivery()
+        let stoppedDelivery = setup.delivery!
+        setup.cancel()
+        testCheck(stoppedDelivery.reserve() == .cancelled && !setup.canSave,
+            "Stopping setup left callback delivery active")
     }
 }
 
@@ -463,6 +523,6 @@ func testDeviceSetup() {
     var deliberate = rest; deliberate.strength = 0.004
     testCheck(RestMotionFilter.apply(deliberate,threshold:learned).direction == "MOVING AWAY","Intentional motion was suppressed")
     testCheck(RestMotionFilter.learn(Array(repeating:Float(0.01),count:100)) == nil,"Large motion was learned as rest")
-    let setup = DeviceSetup(); setup.cancel(); precondition(!setup.canSave)
+    DeviceSetup.testSyntheticDelivery()
     print("PASS setup rejects weak signals, phantom actions, clipping, missing audio, incomplete movement and failed stopping")
 }

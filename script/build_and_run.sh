@@ -31,8 +31,8 @@ cat > "$SONAR_APP/Contents/Info.plist" <<'PLIST'
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>EchoAtlas</string>
 <key>CFBundleIdentifier</key><string>com.nazeeh.echoatlas</string>
-<key>CFBundleShortVersionString</key><string>0.2.0</string>
-<key>CFBundleVersion</key><string>12</string>
+<key>CFBundleShortVersionString</key><string>0.2.1</string>
+<key>CFBundleVersion</key><string>13</string>
 <key>CFBundleName</key><string>EchoAtlas</string>
 <key>CFBundleDisplayName</key><string>EchoAtlas</string>
 <key>CFBundleIconFile</key><string>Sonar.icns</string>

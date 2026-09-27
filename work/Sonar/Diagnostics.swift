@@ -126,13 +126,23 @@ final class Diagnostics: ObservableObject {
     private var token = UUID()
     private var phase = ""
     private var phaseStart = 0.0
+    private var inputFreshness = InputFreshness(startedAt:0)
+    private var delivery: AudioDelivery?
     private var current = DiagnosticSampleSummary(phase:"")
     private var summaries: [DiagnosticSampleSummary] = []
+    private var processingFailure: String?
     init(tone: Double, amplitude: Double) { self.tone = tone; self.amplitude = amplitude }
-    deinit { timer?.invalidate(); engine?.stop() }
+    deinit { delivery?.cancel(); timer?.invalidate(); engine?.stop() }
+    private func acceptInput(capturedAt: Double) -> Bool {
+        inputFreshness.accept(capturedAt:capturedAt,now:ProcessInfo.processInfo.systemUptime)
+    }
+    private func stopForProcessingFailure(_ reason: String) {
+        processingFailure = reason
+        finish(reason)
+    }
 
     func start() {
-        cancel(); report = ""; summaries = []; readyForMovement = false; frequencyIndex = 0; extended = false; showExtras = false; extraIndex = 0; extraFinished = false; walkthroughComplete = false; current = DiagnosticSampleSummary(phase:""); controlTest = "not_tested"
+        cancel(); report = ""; summaries = []; processingFailure = nil; readyForMovement = false; frequencyIndex = 0; extended = false; showExtras = false; extraIndex = 0; extraFinished = false; walkthroughComplete = false; current = DiagnosticSampleSummary(phase:""); controlTest = "not_tested"
         stepTitle = "1 of 4 · Permissions"; message = "Checking microphone access. If macOS asks, choose Allow."; testing = true
         let attempt = token
         AVCaptureDevice.requestAccess(for:.audio) { [weak self] granted in
@@ -144,6 +154,7 @@ final class Diagnostics: ObservableObject {
         }
     }
     func cancel() {
+        delivery?.cancel(); delivery = nil
         if testing && current.status == "running" {
             captureCounters(); current.status = "interrupted"; summaries.append(current)
         }
@@ -165,7 +176,9 @@ final class Diagnostics: ObservableObject {
         current.startedAt = ISO8601DateFormatter().string(from:Date())
         current.plannedSeconds = Double(remaining)
         phaseStart = ProcessInfo.processInfo.systemUptime
+        inputFreshness = InputFreshness(startedAt:phaseStart)
         let attempt = token
+        let delivery = AudioDelivery(); self.delivery = delivery
         var buffer: [Float] = []
         var analyzer: Analyzer?
         var previous: Double?
@@ -176,8 +189,27 @@ final class Diagnostics: ObservableObject {
         var simulatedTime = 0.0
         let audio = HardwareAudio(tone:frequency,amplitude:next == "tone_off" ? 0 : amplitude) { [weak self] block in
             let time = ProcessInfo.processInfo.systemUptime
-            self?.queue.async { [weak self] in
-                guard let self else { return }
+            switch delivery.reserve() {
+            case .cancelled: return
+            case .overloaded:
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.token == attempt else { return }
+                    self.stopForProcessingFailure("Audio processing fell behind. The test stopped before completion.")
+                }
+                return
+            case .accepted: break
+            }
+            guard let self else { delivery.complete(); return }
+            self.queue.async { [weak self] in
+                guard let self, delivery.isActive else { delivery.complete(); return }
+                guard ProcessInfo.processInfo.systemUptime - time <= 0.25 else {
+                    delivery.cancel(); delivery.complete()
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self, self.token == attempt else { return }
+                        self.stopForProcessingFailure("Audio processing fell behind. The test stopped before completion.")
+                    }
+                    return
+                }
                 // Analyze only in memory. Neither samples nor spectra enter the report.
                 let gap = previous.map { max(0,(time-$0)*1000) } ?? 0
                 previous = time
@@ -218,23 +250,29 @@ final class Diagnostics: ObservableObject {
                 let sampleCount = block.count
                 let snapshot = calibration
                 DispatchQueue.main.async { [weak self] in
-                    guard let self, self.token == attempt, self.testing else { return }
-                    self.current.inputPeak = snapshot.inputPeak
-                    self.current.clippedSamples = snapshot.clippedSamples
-                    self.current.calibrationFrames = snapshot.calibrationFrames
-                    self.current.calibrationCarrierMin = snapshot.calibrationCarrierMin
-                    self.current.calibrationCarrierMax = snapshot.calibrationCarrierMax
-                    self.current.baselineChangeMaxDB = snapshot.baselineChangeMaxDB
-                    self.current.wouldScrollFrames = snapshot.wouldScrollFrames
-                    self.current.wouldScrollPoints = snapshot.wouldScrollPoints
-                    self.current.returnStopFrames = snapshot.returnStopFrames
-                    self.current.directionSwitches = snapshot.directionSwitches
-                    self.current.blocks += 1; self.current.samples += sampleCount
-                    self.current.maximumBlockGapMS = max(self.current.maximumBlockGapMS,gap)
-                    for (carrier,contrast,motion) in readings where carrier.isFinite && contrast.isFinite {
-                        self.current.analyzedFrames += 1
-                        self.current.carrierSum += carrier; self.current.contrastSum += contrast
-                        if motion { self.current.motionFrames += 1 }
+                    delivery.deliverIfActive {
+                        guard let self, self.token == attempt, self.testing else { return }
+                        guard self.acceptInput(capturedAt:time) else {
+                            self.stopForProcessingFailure("Audio processing fell behind. The test stopped before completion.")
+                            return
+                        }
+                        self.current.inputPeak = snapshot.inputPeak
+                        self.current.clippedSamples = snapshot.clippedSamples
+                        self.current.calibrationFrames = snapshot.calibrationFrames
+                        self.current.calibrationCarrierMin = snapshot.calibrationCarrierMin
+                        self.current.calibrationCarrierMax = snapshot.calibrationCarrierMax
+                        self.current.baselineChangeMaxDB = snapshot.baselineChangeMaxDB
+                        self.current.wouldScrollFrames = snapshot.wouldScrollFrames
+                        self.current.wouldScrollPoints = snapshot.wouldScrollPoints
+                        self.current.returnStopFrames = snapshot.returnStopFrames
+                        self.current.directionSwitches = snapshot.directionSwitches
+                        self.current.blocks += 1; self.current.samples += sampleCount
+                        self.current.maximumBlockGapMS = max(self.current.maximumBlockGapMS,gap)
+                        for (carrier,contrast,motion) in readings where carrier.isFinite && contrast.isFinite {
+                            self.current.analyzedFrames += 1
+                            self.current.carrierSum += carrier; self.current.contrastSum += contrast
+                            if motion { self.current.motionFrames += 1 }
+                        }
                     }
                 }
             }
@@ -248,6 +286,10 @@ final class Diagnostics: ObservableObject {
             queue.async { analyzer = Analyzer(rate:rate,tone:frequency) }
             timer = Timer.scheduledTimer(withTimeInterval:1,repeats:true) { [weak self] _ in
                 guard let self else { return }
+                if self.inputFreshness.expired(now:ProcessInfo.processInfo.systemUptime) {
+                    self.stopForProcessingFailure("Microphone readings stopped arriving. The test stopped before completion.")
+                    return
+                }
                 self.remaining -= 1
                 if self.phase == "movement" && self.remaining == 10 {
                     self.movementCue = true
@@ -278,6 +320,9 @@ final class Diagnostics: ObservableObject {
         } else { finish(Self.result(summaries)) }
     }
     static func result(_ values: [DiagnosticSampleSummary]) -> String {
+        if values.contains(where: { $0.status == "interrupted" || $0.status == "failed" }) {
+            return "The diagnostic test stopped before completion. Review the per-test status and counters."
+        }
         guard values.count >= 3, values.allSatisfy({ $0.analyzedFrames > 0 }) else { return "Not enough microphone readings arrived to complete the test." }
         guard let movement = values.first(where: { $0.phase == "movement" }) else { return "Sound checks saved. The hand movement test has not been completed." }
         let stillIndex = values.firstIndex { $0.phase == "tone_on_still" && $0.frequencyHz == movement.frequencyHz } ?? 1
@@ -298,7 +343,8 @@ final class Diagnostics: ObservableObject {
         return "EchoAtlas’s tone and movement were detected. This test does not verify control of another app."
     }
     func finish(_ result: String, errorCode: Int? = nil) {
-        if testing { captureCounters(); current.status = errorCode == nil ? "interrupted" : "failed"; summaries.append(current) }
+        if testing { captureCounters(); current.status = errorCode == nil && processingFailure == nil ? "interrupted" : "failed"; summaries.append(current) }
+        let result = processingFailure ?? result
         cancel(); readyForMovement = false; movementCue = false; stepTitle = "Check complete"; message = result
         var size = 0
         sysctlbyname("hw.model",nil,&size,nil,0)
@@ -409,6 +455,30 @@ final class Diagnostics: ObservableObject {
         do { try report.write(to:url,atomically:true,encoding:.utf8) }
         catch { message = "Could not save the report. Try another folder." }
     }
+    static func testSyntheticDelivery() {
+        let diagnostic = Diagnostics(tone:20000,amplitude:0.008)
+        let now = ProcessInfo.processInfo.systemUptime
+        diagnostic.inputFreshness = InputFreshness(startedAt:now-10)
+        testCheck(!diagnostic.acceptInput(capturedAt:now-3),
+            "Delayed diagnostic audio was accepted into the report")
+        testCheck(diagnostic.acceptInput(capturedAt:now-0.1),
+            "Fresh diagnostic audio was rejected")
+        testCheck(!diagnostic.acceptInput(capturedAt:now-0.2),
+            "Out-of-order diagnostic audio was accepted into the report")
+        testCheck(diagnostic.inputFreshness.expired(now:now+2.1),
+            "A quiet diagnostic session did not expire")
+        diagnostic.delivery = AudioDelivery()
+        let stoppedDelivery = diagnostic.delivery!
+        diagnostic.cancel()
+        testCheck(stoppedDelivery.reserve() == .cancelled,
+            "Stopping diagnostics left callback delivery active")
+        diagnostic.processingFailure = "Audio processing fell behind. The test stopped before completion."
+        diagnostic.finish("EchoAtlas’s tone and movement were detected.")
+        diagnostic.finish("EchoAtlas’s tone and movement were detected.")
+        testCheck(diagnostic.report.contains("Audio processing fell behind") &&
+                  !diagnostic.report.contains("Result: EchoAtlas’s tone and movement were detected"),
+            "Regenerating the diagnostic report hid a processing failure")
+    }
 }
 
 struct DiagnosticsView: View {
@@ -485,6 +555,7 @@ struct DiagnosticsView: View {
 }
 
 func testDiagnostics() {
+    Diagnostics.testSyntheticDelivery()
     var levelCheck = DiagnosticSampleSummary(phase:"test")
     levelCheck.measureInput([0,0.5,-1,1,0.999])
     precondition(levelCheck.inputPeak == 1 && levelCheck.clippedSamples == 3)
@@ -500,6 +571,12 @@ func testDiagnostics() {
     let off = sample("tone_off",-90,2,0)
     let still = sample("tone_on_still",-50,30,0)
     let motion = sample("movement",-50,30,40)
+    var completedOff = off; completedOff.status = "completed"
+    var completedStill = still; completedStill.status = "completed"
+    var completedMotion = motion; completedMotion.status = "completed"
+    precondition(Diagnostics.result([completedOff,completedStill,completedMotion]).contains("tone and movement were detected"))
+    completedMotion.status = "interrupted"
+    precondition(Diagnostics.result([completedOff,completedStill,completedMotion]).contains("stopped before completion"))
     precondition(Diagnostics.result([]).contains("Not enough"))
     precondition(Diagnostics.result([off,off,motion]).contains("not clearly detected"))
     precondition(Diagnostics.result([off,sample("tone_on_still",-50,30,20),motion]).contains("still test"))

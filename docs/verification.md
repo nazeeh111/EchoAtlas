@@ -17,6 +17,12 @@ The delivery checks cover missing input, delayed and out-of-order timestamps, a 
 
 The build and tests never start sensing or post system input events. The sleep-notification wiring and actual device loss remain source-inspected rather than physically exercised.
 
+## Setup and diagnostics delivery checks (0.2.1)
+
+Setup and diagnostics now reserve bounded audio delivery across analysis and the main queue. Stop, setup audio-run replacement, and diagnostic phase replacement cancel outstanding work; setup stages that share one run reject readings captured before the new stage. Capture timestamps older than 250 ms fail the current run so cumulative calibration state cannot later enter a fresh report snapshot. Setup's missing-reading timeout tracks capture time rather than UI arrival time. Diagnostic reports retain an audio-processing failure when optional checks regenerate the report.
+
+A disposable harness compiled the 59c7526 setup source with a synthetic three-second-old callback. The prior receiver counted its reading and refreshed `lastReading` to current UI time. The updated receiver's self-test rejects the same callback and marks the candidate failed; separate synthetic checks cover fresh input, expiration, cancellation, and interrupted versus completed diagnostic results. `./script/build_and_run.sh --build-only` passed the self-tests and strict signature checks for the staged and extracted ZIP. No microphone or sensor was started, and physical calibration behavior remains unverified.
+
 ## Remaining limits
 
 The version 0.2.0 ZIP was extracted separately, its strict code signature verified, and the native app inspected with sensing stopped. All six modes were reached. Manual scrolling changed the document position; gallery navigation advanced through the three replacement images; Zoom changed from 100% to 150% and reset to 100%; reversing gestures updated both the side guide and its sheet. Position settings opened successfully. Screenshots confirmed the new horizontal navigation, cream/copper layout, image presentation, and bundled guide. Audio sensing was not started during this work. Real-hand accuracy, physical audio levels, external-app delivery, cross-device behavior, and battery use remain unverified.
