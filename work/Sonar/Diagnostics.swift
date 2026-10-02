@@ -187,7 +187,7 @@ final class Diagnostics: ObservableObject {
         var simulatedMotion = ScrollMotion()
         var simulatedTaps = DoublePushDetector()
         var simulatedTime = 0.0
-        let receive: ([Float]) -> Void = { [weak self] block in
+        let audio = HardwareAudio(tone:frequency,amplitude:next == "tone_off" ? 0 : amplitude) { [weak self] block in
             let time = ProcessInfo.processInfo.systemUptime
             switch delivery.reserve() {
             case .cancelled: return
@@ -229,7 +229,12 @@ final class Diagnostics: ObservableObject {
                                 calibration.calibrationCarrierMin = min(calibration.calibrationCarrierMin ?? level, level)
                                 calibration.calibrationCarrierMax = max(calibration.calibrationCarrierMax ?? level, level)
                                 if lastBaseline.count == r.baseline.count, !lastBaseline.isEmpty {
-                                    let delta = zip(lastBaseline,r.baseline).map { abs(Double($0-$1)) }.reduce(0,+) / Double(lastBaseline.count)
+                                    var changeSum: Double = 0
+                                    for (previousValue, currentValue) in zip(lastBaseline,r.baseline) {
+                                        let difference: Float = previousValue - currentValue
+                                        changeSum += abs(Double(difference))
+                                    }
+                                    let delta = changeSum / Double(lastBaseline.count)
                                     if delta.isFinite { calibration.baselineChangeMaxDB = max(calibration.baselineChangeMaxDB,delta) }
                                 }
                                 lastBaseline = r.baseline
@@ -277,7 +282,6 @@ final class Diagnostics: ObservableObject {
                 }
             }
         }
-        let audio = HardwareAudio(tone:frequency,amplitude:next == "tone_off" ? 0 : amplitude,receive:receive)
         do {
             engine = audio
             try audio.start()
