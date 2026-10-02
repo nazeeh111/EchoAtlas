@@ -16,6 +16,27 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: Diagnose compiler expression checking
+        continue-on-error: true
+        # Temporary typecheck-only probe for the existing hosted compiler failure.
+        run: |
+          swiftc --version
+          xcodebuild -version
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import shlex
+          import subprocess
+          line = next(line for line in Path("script/build_and_run.sh").read_text().splitlines()
+                      if line.startswith("swiftc "))
+          args = shlex.split(line)
+          output = args.index("-o")
+          del args[output:output + 2]
+          args[1:1] = ["-typecheck", "-Xfrontend", "-debug-time-expression-type-checking",
+                       "-Xfrontend", "-warn-long-expression-type-checking=10",
+                       "-Xfrontend", "-warn-long-function-bodies=100"]
+          print(shlex.join(args), flush=True)
+          subprocess.run(args, check=True)
+          PYTHON
       - name: Compile, self-test, and verify the extracted app signature
         # Build-only exits before installation, launch, or live sensing.
         run: ./script/build_and_run.sh --build-only
