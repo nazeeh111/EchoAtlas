@@ -28,3 +28,7 @@ A disposable harness compiled the 59c7526 setup source with a synthetic three-se
 The version 0.2.0 ZIP was extracted separately, its strict code signature verified, and the native app inspected with sensing stopped. All six modes were reached. Manual scrolling changed the document position; gallery navigation advanced through the three replacement images; Zoom changed from 100% to 150% and reset to 100%; reversing gestures updated both the side guide and its sheet. Position settings opened successfully. Screenshots confirmed the new horizontal navigation, cream/copper layout, image presentation, and bundled guide. Audio sensing was not started during this work. Real-hand accuracy, physical audio levels, external-app delivery, cross-device behavior, and battery use remain unverified.
 
 A pre-existing Swift warning in SpeakerVolume.swift concerns a generic CoreAudio pointer. Baseline and redesigned builds both emit it; this presentation change does not alter that code.
+
+## Continuous checks
+
+The native workflow runs the existing `./script/build_and_run.sh --build-only` on a standard Apple silicon macOS runner. It compiles the app, checks the intentional test-failure exit, runs the synthetic regression suite, and verifies the code signature after ordinary ZIP extraction. It exits before installation or launch and does not start sensing or post system input. A passing workflow establishes these build and synthetic checks only; physical accuracy and sound levels remain unverified.

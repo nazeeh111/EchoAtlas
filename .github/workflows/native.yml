@@ -1,0 +1,21 @@
+name: Native build and synthetic regression checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Compile, self-test, and verify the extracted app signature
+        # Build-only exits before installation, launch, or live sensing.
+        run: ./script/build_and_run.sh --build-only

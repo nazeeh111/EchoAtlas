@@ -229,7 +229,12 @@ final class Diagnostics: ObservableObject {
                                 calibration.calibrationCarrierMin = min(calibration.calibrationCarrierMin ?? level, level)
                                 calibration.calibrationCarrierMax = max(calibration.calibrationCarrierMax ?? level, level)
                                 if lastBaseline.count == r.baseline.count, !lastBaseline.isEmpty {
-                                    let delta = zip(lastBaseline,r.baseline).map { abs(Double($0-$1)) }.reduce(0,+) / Double(lastBaseline.count)
+                                    var changeSum: Double = 0
+                                    for (previousValue, currentValue) in zip(lastBaseline,r.baseline) {
+                                        let difference: Float = previousValue - currentValue
+                                        changeSum += abs(Double(difference))
+                                    }
+                                    let delta = changeSum / Double(lastBaseline.count)
                                     if delta.isFinite { calibration.baselineChangeMaxDB = max(calibration.baselineChangeMaxDB,delta) }
                                 }
                                 lastBaseline = r.baseline
