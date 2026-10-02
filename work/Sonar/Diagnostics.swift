@@ -187,7 +187,7 @@ final class Diagnostics: ObservableObject {
         var simulatedMotion = ScrollMotion()
         var simulatedTaps = DoublePushDetector()
         var simulatedTime = 0.0
-        let audio = HardwareAudio(tone:frequency,amplitude:next == "tone_off" ? 0 : amplitude) { [weak self] block in
+        let receive: ([Float]) -> Void = { [weak self] block in
             let time = ProcessInfo.processInfo.systemUptime
             switch delivery.reserve() {
             case .cancelled: return
@@ -277,6 +277,7 @@ final class Diagnostics: ObservableObject {
                 }
             }
         }
+        let audio = HardwareAudio(tone:frequency,amplitude:next == "tone_off" ? 0 : amplitude,receive:receive)
         do {
             engine = audio
             try audio.start()
