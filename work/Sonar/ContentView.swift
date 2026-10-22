@@ -11,6 +11,8 @@ enum AtlasTheme {
     static let ink = Color(red:0.082,green:0.153,blue:0.176)
     static let muted = Color(red:0.298,green:0.384,blue:0.408)
     static let line = Color(red:0.741,green:0.800,blue:0.812)
+    static let notice = Color(red:0.84,green:0.91,blue:0.94)
+    static let noticeLine = Color(red:0.38,green:0.54,blue:0.60)
 }
 
 extension DemoMode {
@@ -167,14 +169,16 @@ struct ContentView: View {
             }
             if let warning = sonar.speakerWarning {
                 Label(warning,systemImage:"speaker.slash.fill").font(.callout).frame(maxWidth:.infinity,alignment:.leading)
-                    .padding(12).background(Color.orange.opacity(0.12),in:RoundedRectangle(cornerRadius:10))
+                    .padding(12).background(AtlasTheme.notice,in:RoundedRectangle(cornerRadius:8))
+                    .overlay(RoundedRectangle(cornerRadius:8).stroke(AtlasTheme.noticeLine,lineWidth:1))
             }
             if isExternal && !reader.accessibilityGranted {
                 HStack {
                     Label("Allow Accessibility access to control other apps.",systemImage:"hand.raised")
                     Spacer()
                     Button("Open Settings") { reader.openAccessibilitySettings() }
-                }.font(.callout).padding(12).background(Color.orange.opacity(0.12),in:RoundedRectangle(cornerRadius:10))
+                }.font(.callout).padding(12).background(AtlasTheme.notice,in:RoundedRectangle(cornerRadius:8))
+                    .overlay(RoundedRectangle(cornerRadius:8).stroke(AtlasTheme.noticeLine,lineWidth:1))
             }
             if !sessionActive && sonar.status != "Ready — sound is off" && sonar.status != "Stopped — sound is off" {
                 Text(sonar.status).font(.callout).foregroundStyle(AtlasTheme.accent).frame(maxWidth:.infinity,alignment:.leading)
@@ -270,7 +274,7 @@ struct AudioSettingsView: View {
                 Text("Signal level · \(String(format:"%.1f",sonar.level*100))%")
                 Slider(value:$sonar.level,in:0.002...0.04).disabled(sonar.running || sonar.starting)
             }
-            if let warning = sonar.speakerWarning { Text(warning).foregroundStyle(.orange).fixedSize(horizontal:false,vertical:true) }
+            if let warning = sonar.speakerWarning { Label(warning,systemImage:"speaker.slash.fill").foregroundStyle(AtlasTheme.ink).fixedSize(horizontal:false,vertical:true) }
             Spectrum(reading:sonar.reading).frame(height:95).background(Color.black.opacity(0.8)).clipShape(RoundedRectangle(cornerRadius:8))
             Text(sonar.status).font(.caption)
             Text(sonar.route).font(.caption).foregroundStyle(.secondary)
