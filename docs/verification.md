@@ -32,3 +32,11 @@ A pre-existing Swift warning in SpeakerVolume.swift concerns a generic CoreAudio
 ## Continuous checks
 
 The native workflow runs the existing `./script/build_and_run.sh --build-only` on a standard Apple silicon macOS runner. It compiles the app, checks the intentional test-failure exit, runs the synthetic regression suite, and verifies the code signature after ordinary ZIP extraction. It exits before installation or launch and does not start sensing or post system input. A passing workflow establishes these build and synthetic checks only; physical accuracy and sound levels remain unverified.
+
+## Interface and release check (2026-10-22)
+
+The cool-panel interface refresh was built with `./script/build_and_run.sh --build-only`. The intentional failure probe, all 23 synthetic PASS groups, speaker-volume and volume-recalibration checks, and strict signature verification of the staged and ZIP-extracted apps passed. The pre-existing CoreAudio pointer warning remains.
+
+The fresh source app was inspected with sound off. Manual Swipe advanced from 1/3 to 2/3 and returned; Zoom changed from 100% to 150% and reset to 100%. Scroll, Signal and Settings were also opened. The README image is a direct capture of this source build, with its actual muted-speaker and Accessibility notices visible. The illustrated gallery item is generated practice material, not sensor data. No audio session or permission request was started.
+
+Separately, the published v0.2.1 ZIP matched its SHA-256 file, passed strict signature verification after ordinary extraction, and passed the same synthetic suite. Manual Swipe and Zoom were checked in that release before the refresh. Its interface has the earlier cream/copper appearance; the source screenshot is not a claim that the download has been updated. Physical sensing, sound levels, external-app delivery and cross-device performance remain unverified.

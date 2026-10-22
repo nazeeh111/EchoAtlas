@@ -4,7 +4,7 @@
 
 - Work on the native **EchoAtlas Lab app** only, unless the user explicitly expands the task.
 - GitHub repository: https://github.com/nazeeh111/EchoAtlas
-- Default branch: `master`.
+- Default branch: `main`.
 - App source: `work/Sonar/`; executable: `EchoAtlas`. Preserve the derivative bundle identifier `com.nazeeh.echoatlas` for permission continuity. This derivative has a separate bundle identity and must not stop or replace another app.
 - User-facing app branding is `EchoAtlas`; the repository is `EchoAtlas`.
 - Do not include EchoAtlasTheremin, the website, Blender projects, renders, or sibling-workspace files in Lab commits. These were previously pushed accidentally; the public-preparation history removes them.
@@ -15,7 +15,7 @@
 2. Fetch the remote and compare history before pushing. A development checkout may lag behind commits pushed from another worktree; apparent local changes may already exist upstream.
 3. Preserve uncommitted changes. Do not reset, clean, overwrite, or stash other work automatically to resolve divergence.
 4. Stage explicit Lab paths and inspect the staged diff. Avoid `git add .` in mixed workspaces.
-5. When asked to commit and push, use this repository and its `master` branch unless the user requests another branch. Use a normal fast-forward push, verify the remote commit, and report its hash. Never force-push without explicit authorization.
+5. When asked to commit and push, use this repository and its `main` branch unless the user requests another branch. Use a normal fast-forward push, verify the remote commit, and report its hash. Never force-push without explicit authorization.
 6. A feature request does not by itself require a commit or push.
 
 ## Build and run

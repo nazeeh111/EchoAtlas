@@ -2,13 +2,15 @@ import AppKit
 import SwiftUI
 
 enum AtlasTheme {
-    static let background = Color(red:0.965,green:0.950,blue:0.920)
-    static let sidebar = Color(red:0.91,green:0.88,blue:0.83)
-    static let card = Color(red:0.995,green:0.987,blue:0.965)
-    static let accent = Color(red:0.57,green:0.29,blue:0.19)
-    static let ink = Color(red:0.16,green:0.20,blue:0.20)
-    static let muted = Color(red:0.38,green:0.39,blue:0.36)
-    static let line = Color(red:0.81,green:0.79,blue:0.73)
+    // Cool panel surfaces and a teal trace accent echo the signal instruments.
+    // Direction colors inside plots retain their existing measurement meanings.
+    static let background = Color(red:0.929,green:0.949,blue:0.953)
+    static let sidebar = Color(red:0.835,green:0.890,blue:0.906)
+    static let card = Color(red:0.988,green:0.996,blue:0.996)
+    static let accent = Color(red:0.0,green:0.408,blue:0.424)
+    static let ink = Color(red:0.082,green:0.153,blue:0.176)
+    static let muted = Color(red:0.298,green:0.384,blue:0.408)
+    static let line = Color(red:0.741,green:0.800,blue:0.812)
 }
 
 extension DemoMode {
@@ -63,8 +65,8 @@ struct ContentView: View {
                 Image(systemName:"waveform.path").font(.system(size:22,weight:.medium)).foregroundStyle(AtlasTheme.background)
             }
             VStack(alignment:.leading,spacing:2) {
-                Text("EchoAtlas").font(.system(size:22,weight:.bold,design:.rounded)).tracking(-0.5)
-                Text("ACOUSTIC GESTURE CONTROL").font(.system(size:9,weight:.semibold,design:.monospaced)).tracking(1.2).foregroundStyle(AtlasTheme.muted)
+                Text("EchoAtlas").font(.system(size:22,weight:.bold,design:.default)).tracking(-0.5)
+                Text("ACOUSTIC GESTURE LAB").font(.system(size:9,weight:.semibold,design:.monospaced)).tracking(1.2).foregroundStyle(AtlasTheme.muted)
             }
             Spacer(minLength:8)
             HStack(spacing:8) {
@@ -93,7 +95,10 @@ struct ContentView: View {
             }
             .frame(maxWidth:.infinity,minHeight:34)
             .foregroundStyle(selected ? AtlasTheme.card : AtlasTheme.ink)
-            .background(selected ? AtlasTheme.ink : Color.clear,in:RoundedRectangle(cornerRadius:9))
+            .background(selected ? AtlasTheme.ink : Color.clear,in:RoundedRectangle(cornerRadius:5))
+            .overlay(alignment:.bottom) {
+                if selected { Rectangle().fill(AtlasTheme.accent).frame(height:3).padding(.horizontal,12) }
+            }
             .contentShape(RoundedRectangle(cornerRadius:9))
         }.buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected : [])
     }
@@ -117,7 +122,7 @@ struct ContentView: View {
             VStack(alignment:.leading,spacing:24) {
                 VStack(alignment:.leading,spacing:6) {
                     Text("PREFERENCES").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1.5).foregroundStyle(AtlasTheme.accent)
-                    Text("Settings").font(.system(size:32,weight:.bold,design:.rounded))
+                    Text("Settings").font(.system(size:32,weight:.bold,design:.default))
                     Text("Tune the setup, inspect the audio path, or check diagnostics.").foregroundStyle(AtlasTheme.muted)
                 }
                 VStack(spacing:0) {
@@ -182,7 +187,7 @@ struct ContentView: View {
                 VStack(alignment:.leading,spacing:5) {
                     Text(reader.mode == .signal || reader.mode == .distance || reader.mode == .position ? "SIGNAL LAB" : "GESTURE STUDIO")
                         .font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1.5).foregroundStyle(AtlasTheme.accent)
-                    Text(reader.mode.rawValue).font(.system(size:32,weight:.bold,design:.rounded)).tracking(-0.6)
+                    Text(reader.mode.rawValue).font(.system(size:32,weight:.bold,design:.default)).tracking(-0.6)
                 }
                 Spacer()
                 Text(reader.mode.subtitle).font(.callout).foregroundStyle(AtlasTheme.muted).multilineTextAlignment(.trailing)

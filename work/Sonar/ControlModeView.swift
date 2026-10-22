@@ -66,15 +66,15 @@ struct ControlModeView: View {
                 stage.frame(width:geometry.size.width,height:geometry.size.height)
             }.frame(height:348)
         }
-        .background(AtlasTheme.card,in:RoundedRectangle(cornerRadius:15))
-        .overlay(RoundedRectangle(cornerRadius:15).stroke(AtlasTheme.line,lineWidth:1))
-        .clipShape(RoundedRectangle(cornerRadius:15))
+        .background(AtlasTheme.card,in:RoundedRectangle(cornerRadius:8))
+        .overlay(RoundedRectangle(cornerRadius:8).stroke(AtlasTheme.line,lineWidth:1))
+        .clipShape(RoundedRectangle(cornerRadius:8))
         .frame(maxWidth:.infinity)
     }
     private var guideRail: some View {
         VStack(alignment:.leading,spacing:12) {
             Label("HOW TO MOVE",systemImage:"hand.draw").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1.2).foregroundStyle(AtlasTheme.accent)
-            Text(instruction).font(.system(size:17,weight:.semibold,design:.rounded)).fixedSize(horizontal:false,vertical:true)
+            Text(instruction).font(.system(size:17,weight:.semibold,design:.default)).fixedSize(horizontal:false,vertical:true)
             Text(detail).font(.callout).foregroundStyle(AtlasTheme.muted).fixedSize(horizontal:false,vertical:true)
             Button { showGestureGuide = true } label: {
                 Label("See gesture guide",systemImage:"arrow.up.right").font(.callout.weight(.semibold))
@@ -100,8 +100,8 @@ struct ControlModeView: View {
         }
         .padding(17)
         .frame(maxWidth:.infinity,minHeight:390,alignment:.topLeading)
-        .background(AtlasTheme.sidebar.opacity(0.5),in:RoundedRectangle(cornerRadius:15))
-        .overlay(RoundedRectangle(cornerRadius:15).stroke(AtlasTheme.line,lineWidth:1))
+        .background(AtlasTheme.sidebar.opacity(0.5),in:RoundedRectangle(cornerRadius:8))
+        .overlay(RoundedRectangle(cornerRadius:8).stroke(AtlasTheme.line,lineWidth:1))
     }
     @ViewBuilder private var options: some View {
         switch reader.mode {
