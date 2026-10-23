@@ -374,7 +374,7 @@ final class DeviceSetup: ObservableObject {
             model:DiagnosticHardware.modelIdentifier(),date:ISO8601DateFormatter().string(from:Date()))
         profile.restThreshold = current.restThreshold; profile.restVolumes = volume?.volumes
         profile.save(); sonar.frequency = profile.frequency; sonar.level = profile.amplitude
-        transition(.saved,message:"You’re ready to try EchoAtlas. Recalibrate any time from the sidebar.")
+        transition(.saved,message:"You’re ready to try EchoAtlas. Recalibrate any time from Settings.")
     }
     func saveReport() {
         struct Report: Encodable {

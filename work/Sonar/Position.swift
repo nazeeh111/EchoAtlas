@@ -92,14 +92,7 @@ struct PositionView: View {
             }
         }
     }
-    private func channel(_ title:String,_ reading:RangeReading,fresh:Bool)->some View {
-        VStack(alignment:.leading,spacing:6) {
-            Text(title).font(.callout.bold())
-            Text((fresh ? reading.cm : nil).map { String(format:"≈ %.0f cm echo range",$0) } ?? "No range lock").font(.title3.monospacedDigit())
-            ProgressView(value:fresh ? reading.quality : 0).tint(.mint)
-            Text(reading.status).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-        }.frame(maxWidth:.infinity,alignment:.leading)
-    }
+
 }
 func testPosition() {
     for x in [-8.0,0,8] {

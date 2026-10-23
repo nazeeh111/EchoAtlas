@@ -542,7 +542,7 @@ struct DiagnosticsView: View {
                 Text("Your final report is ready.").font(.title2.bold())
                 Text("It includes your main test and the extra checks you completed.")
                 Button("Save final report…") { diagnostic.save() }.buttonStyle(.borderedProminent)
-                Text("Send the saved file to Emanuel for troubleshooting.").foregroundStyle(.secondary)
+                Text("Keep the saved report for troubleshooting.").foregroundStyle(.secondary)
             } else {
                 Text(diagnostic.message).font(.headline)
                 VStack(alignment:.leading,spacing:8) {

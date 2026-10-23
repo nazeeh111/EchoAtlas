@@ -29,9 +29,10 @@ struct EchoFlowView: View {
     let frames: [SignalFrame]
     let frozen: Bool
     @State private var gain=1.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         VStack(spacing:12) {
-            TimelineView(.animation(minimumInterval:1.0/30,paused:frozen)) { _ in
+            TimelineView(.animation(minimumInterval:reduceMotion ? 0.1 : 1.0/30,paused:frozen)) { _ in
                 let time=frozen ? (frames.last?.time ?? 0) : ProcessInfo.processInfo.systemUptime
                 let drive=EchoFlowDrive.measure(frames,now:time)
                 Canvas { context,size in
@@ -58,7 +59,7 @@ struct EchoFlowView: View {
                         }
                         context.stroke(path,with:.color(color.opacity(opacity*0.12)),lineWidth:3)
                         context.stroke(path,with:.color(color.opacity(opacity*(0.4+seed*0.6))),lineWidth:0.7)
-                        if live {
+                        if live && !reduceMotion {
                             for head in 0..<3 {
                                 let progress=(time*0.28+seed+Double(head)/3).truncatingRemainder(dividingBy:1)
                                 var trail=Path()

@@ -11,8 +11,7 @@ struct AudioSignalView: View {
                 Text("Spectrogram").font(.headline)
                 Spacer()
                 Text(frozen ? "Display paused · audio continues" : "Last 5 seconds").foregroundStyle(.secondary)
-            }.font(.caption)
-                .font(.caption).foregroundStyle(.secondary)
+            }.font(.caption).foregroundStyle(.secondary)
             Canvas { context,size in
                 let plot = CGRect(x:62,y:12,width:max(1,size.width-76),height:max(1,size.height-38))
                 if let last = frames.last {

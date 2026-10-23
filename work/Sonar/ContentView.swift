@@ -253,17 +253,6 @@ struct WaveDirectionToggle: View {
     var body: some View { Toggle("Reverse directions",isOn:$wave.reversed).toggleStyle(.switch).controlSize(.small) }
 }
 
-final class AudioSettingsWindow {
-    private static var window: NSWindow?
-    static func show(_ sonar: Sonar) {
-        if let window { window.makeKeyAndOrderFront(nil); return }
-        let panel = NSWindow(contentRect:NSRect(x:0,y:0,width:440,height:500),styleMask:[.titled,.closable],backing:.buffered,defer:false)
-        panel.title = "Audio Settings"; panel.isReleasedWhenClosed = false
-        panel.contentView = NSHostingView(rootView:AudioSettingsView(sonar:sonar))
-        window = panel; panel.center(); panel.makeKeyAndOrderFront(nil)
-    }
-}
-
 struct AudioSettingsView: View {
     @ObservedObject var sonar: Sonar
     var body: some View {
@@ -306,7 +295,6 @@ struct ExperimentStatus: View {
 
 enum ScreenLayout {
     static let width: CGFloat = 1180
-    static let previewWidth: CGFloat = 960
     static let previewHeight: CGFloat = 350
     static let spacing: CGFloat = 14
     static let inset: CGFloat = 28
@@ -402,15 +390,5 @@ struct AppSheet<Content: View>: View {
                 HStack { Spacer(); Button("Done",action:close).buttonStyle(.borderedProminent).controlSize(.large).keyboardShortcut(.cancelAction) }.padding(16)
             }
         }.frame(width:width,height:height).background(Color(nsColor:.windowBackgroundColor))
-    }
-}
-
-private struct SidebarActionLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(alignment: .center, spacing: 8) {
-            configuration.icon.frame(width: 22, alignment: .center)
-            configuration.title
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

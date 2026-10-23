@@ -112,31 +112,6 @@ final class DemoSession: ObservableObject {
     }
 }
 
-struct DemoPanel: View {
-    @ObservedObject var demo: DemoSession
-    let mode: DemoMode
-    var body: some View {
-        VStack(spacing:20) {
-            if !demo.feedback.hasPrefix("Start,") { Text(demo.feedback.components(separatedBy:" · ").prefix(2).joined(separator:" · ")).font(.callout).foregroundStyle(.secondary).frame(maxWidth:.infinity,alignment:.leading) }
-            switch mode {
-            case .gallery:
-                Text("Sweep your palm sideways. Pause briefly between waves.").font(.callout).foregroundStyle(.secondary)
-                ZStack {
-                    RoundedRectangle(cornerRadius:16).fill(Color.black.opacity(0.95))
-                    if !demo.photos.isEmpty {
-                        Image(nsImage:demo.photos[demo.galleryIndex % demo.photos.count]).resizable().scaledToFit().padding(6)
-                    } else {
-                        Text("Open some photos to get started.").foregroundStyle(.white)
-                    }
-                }.frame(maxHeight:.infinity)
-                HStack { Button("Previous") { demo.perform("previous") }; Text("\(demo.galleryIndex+1) / \(demo.photos.isEmpty ? DemoSession.sampleNames.count : demo.photos.count)"); Button("Next") { demo.perform("next") }; Spacer(); Button("Sample images") { demo.loadSamplePhotos() }; Button("Open images…") { demo.openPhotos() } }
-            case .zoom, .scroll, .signal, .distance, .position: EmptyView()
-            }
-            Text("Keep this window in front while practicing.").font(.caption).foregroundStyle(.secondary)
-        }.padding(24).frame(maxWidth:.infinity,maxHeight:.infinity)
-    }
-}
-
 func testDemoModes() {
     for (mode,dir,frames,expected) in [(DemoMode.gallery,"APPROACHING",10,"next"),(.gallery,"MOVING AWAY",10,"previous")] {
         var detector = DemoGestureDetector(); var events:[String] = []; var time = 0.0

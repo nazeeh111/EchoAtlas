@@ -85,18 +85,6 @@ final class WaveCalibration: ObservableObject {
     }
 }
 
-struct WaveControls: View {
-    @ObservedObject var wave: WaveCalibration
-    var body: some View {
-        VStack(alignment:.leading,spacing:10) {
-            Text("Wave to browse").font(.headline)
-            Text("Palm down above the keyboard. Sweep sideways, then pause briefly before the next sweep.").font(.callout).foregroundStyle(.secondary)
-            Toggle("Reverse directions",isOn:$wave.reversed)
-            Text(wave.live ? wave.message : "Press Start gallery. No wave recording needed.").foregroundStyle(.mint)
-        }.padding(14).background(.white.opacity(0.05)).clipShape(RoundedRectangle(cornerRadius:12))
-    }
-}
-
 func testWaveCalibration() {
     // Before this fix both weak, one-sided noise and an ambiguous 1.67:1
     // energy ratio emitted a swipe despite failing Analyzer's motion rules.
