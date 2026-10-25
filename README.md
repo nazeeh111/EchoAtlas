@@ -12,7 +12,7 @@ Apple silicon · macOS 14 or later · local audio processing.
 
 [Download EchoAtlas for Apple silicon](https://github.com/nazeeh111/EchoAtlas/releases/latest/download/EchoAtlas.zip) · [SHA-256 checksum](https://github.com/nazeeh111/EchoAtlas/releases/latest/download/EchoAtlas.zip.sha256)
 
-The download is **v0.2.1**, with the earlier interface appearance. Build from source below for the interface shown above.
+The download is **v0.2.2**, with the refined interface shown above.
 
 Requires an Apple silicon Mac running macOS 14 or later. Unzip the download and move `EchoAtlas.app` to Applications. This build is ad-hoc signed and is **not Apple-notarized**, so macOS may block its first launch. Review the release notes before deciding whether to allow it in System Settings → Privacy & Security. The source-build option below is also available.
 
