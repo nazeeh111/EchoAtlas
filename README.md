@@ -75,5 +75,3 @@ The preserved synthetic suite covers audio transforms, gesture decisions, return
 Physical gesture accuracy, speaker levels, and battery use vary with the Mac and room. Live-hand acceptance and cross-device accuracy testing are still needed. Distance and Position remain experimental estimates. Source builds are ad-hoc signed; the optional release-packaging script requires your own signing/notarization setup and is not needed for local use.
 
 Maintained by **nazeeh111**. See [component and asset notices](THIRD_PARTY_NOTICES.md).
-
-**Publication note:** Developed locally with Git before publication. GitHub upload dates are publication dates, not a development timeline.
