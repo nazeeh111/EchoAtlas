@@ -77,5 +77,5 @@
 - Use EchoAtlas branding and identify nazeeh111 as maintainer.
 - Preserve factual limits: this is an experiment in progress, and synthetic tests do not establish physical gesture accuracy.
 - Keep pet/hearing guidance and privacy details accurate.
-- Preserve separate third-party media notices in THIRD_PARTY_NOTICES.md and assets/gallery/CREDITS.md.
+- Preserve gallery asset provenance in assets/gallery/GENERATED-ASSETS.md and any bundled component licenses.
 - Do not start audio or grant permissions as part of a visual-only inspection.
