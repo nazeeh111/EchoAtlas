@@ -57,16 +57,15 @@ if [[ "$SONAR_TEST_STATUS" != 1 ]] || ! /usr/bin/grep -q 'Intentional clean-exit
   exit 1
 fi
 "$SONAR_APP/Contents/MacOS/EchoAtlas" --self-test
-mkdir -p outputs
-# Replace generated output so an optional PDF from an older build cannot linger.
-rm -rf "outputs/EchoAtlas.app"
-ditto --noextattr --norsrc "$SONAR_APP" "outputs/EchoAtlas.app"
-# Omit AppleDouble sidecars: generic ZIP extractors otherwise leave extra files
-# inside the signed bundle and invalidate its sealed resources.
-ditto -c -k --keepParent --noextattr --norsrc "outputs/EchoAtlas.app" outputs/EchoAtlas.zip
+# Verify the new archive before publishing either output. Failed builds leave
+# the previous app/archive pair available for use or distribution.
+# Omit AppleDouble sidecars so ordinary extraction preserves sealed resources.
+ditto -c -k --keepParent --noextattr --norsrc "$SONAR_APP" "$SONAR_STAGE/EchoAtlas.zip"
 mkdir "$SONAR_STAGE/archive-check"
-/usr/bin/unzip -q outputs/EchoAtlas.zip -d "$SONAR_STAGE/archive-check"
+/usr/bin/unzip -q "$SONAR_STAGE/EchoAtlas.zip" -d "$SONAR_STAGE/archive-check"
 codesign --verify --strict "$SONAR_STAGE/archive-check/EchoAtlas.app"
+./script/test_publish_outputs.sh
+./script/publish_outputs.sh "$SONAR_APP" "$SONAR_STAGE/EchoAtlas.zip" outputs
 if [[ "${1:-}" == "--build-only" ]]; then
   echo "Built and tested: outputs/EchoAtlas.app"
   exit 0
